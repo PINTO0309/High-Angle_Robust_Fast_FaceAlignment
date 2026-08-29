@@ -252,6 +252,7 @@ datasets/
 
 # training runs (logs / checkpoints)
 runs/
+output_dir/
 
 # synthetic image-generation provenance (kept locally, not tracked)
 data/synthetic/

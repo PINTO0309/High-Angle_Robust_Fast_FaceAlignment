@@ -263,6 +263,36 @@ uv run python scripts/make_results_tables.py > tables.md
 
 Training logs are written to `runs/<preset>/train_log_<preset>.jsonl` (validation metrics per epoch); the best checkpoint is `runs/<preset>/<preset>_best_eXXXX_<val>.pt` and the resume checkpoint is `<preset>_last.pt`. `scripts/run_phase_a.sh` runs the student arms of Phase A back to back.
 
+### ONNX demo (`demo/demo_hrffa_onnx.py`)
+
+A self-contained two-stage demo (only `numpy`, `opencv` and `onnxruntime` are needed): DEIMv2-Wholebody49 detects heads (class 7), each head is cropped exactly as in training / evaluation (square crop of the longer bbox side × 1.1, `--crop_pad 0.05`), and the HRFFA graph predicts the landmarks, which are mapped back to the image. Both models are switchable; the normalization of the alignment model is inferred from its file name (`vitl` → ImageNet mean/std, otherwise center05) and can be forced with `--input_norm`. Fixed batch-1 and N-batch graphs are both accepted (an N-batch graph processes all heads of a frame in one run).
+
+```bash
+# images (default models: DEIMv2 dinov3_s wholebody49 + hrffa_vitt_ibug68_1x3x256x256)
+uv run python demo/demo_hrffa_onnx.py \
+-i images_dir \
+-o output_dir
+
+# camera 0 / video file, CUDA EP, other alignment models
+uv run python demo/demo_hrffa_onnx.py \
+-v 0 \
+-o output_dir \
+-d cuda
+
+uv run python demo/demo_hrffa_onnx.py \
+-v input.mp4 \
+-o output_dir \
+-am data/models/hrffa_hg0_ibug68_Nx3x96x96.onnx
+
+uv run python demo/demo_hrffa_onnx.py \
+-i images_dir \
+-o output_dir \
+-dm data/models/deimv2_hgnetv2_n_wholebody49_ins_s08_maskhead64x2_center_1240query_masks.onnx \
+-am data/models/hrffa_vitl_ibug68_1x3x320x320.onnx
+```
+
+Options: `-d cpu|cuda|tensorrt` (default: CUDA if available), `--head_score_threshold 0.5`, `--draw_lines` (ibug68 contour lines), `--disable_bbox`, `--point_radius`, `--save_raw_predictions` (per-image / per-frame JSON with head boxes, points and the 3-class visibility), `--disable_imshow`, `--disable_video_writer`. Keys for video / camera input: `ESC` quit, `b` toggle head boxes, `l` toggle contour lines. Rendering follows the project convention: predictions only, single color, no visibility color coding.
+
 ### Configuration (`configs/*.yaml`)
 
 Each preset stores **only the differences** from the defaults of `TrainConfig` (`src/hrffa/train/config.py`). `_base_:` inherits another preset (chained, last-wins merge, cycle detection; unknown keys are errors).
@@ -288,6 +318,7 @@ src/hrffa/
   train/            train_teacher.py, distill_student.py, evaluate.py, config.py
   export/           export_onnx.py, nbatch.py (fixed batch-1 → N-batch conversion and graph rewrites)
 scripts/            run_phase_a.sh (run the student arms back to back), make_results_tables.py
+demo/               demo_hrffa_onnx.py (ONNX demo: DEIMv2-Wholebody49 head detection + HRFFA landmarks; images / video / camera)
 tests/              unit tests (model, export, N-batch conversion, dataset conversion)
 history/            050_results_tables.md (results tables) and assets/050/ (README figures)
 ckpts/ data/ datasets/ runs/ onnx/   weights, raw data, unified data and training outputs (not tracked by git)
