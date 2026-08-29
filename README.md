@@ -77,7 +77,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-096 | cofw | 4.74 | 4.61 | 4.72 | 4.49 | 4.73 | 4.49 | 4.56 | 4.55 | +0.00 |
 
 #### Table 5. NME (%) under camera pitch / yaw perturbation (pose-stress, n=300 per set)
-| Model | Set | base | cam pitch<br>−25 | <br>−15 | <br>+15 | <br>+25 | cam yaw<br>−15 | <br>+15 | <br>p+25, y+15 | <br>p−25, y−15 |
+| Model | Set | base | cam<br>pitch<br>−25 | <br><br>−15 | <br><br>+15 | <br><br>+25 | cam<br>yaw<br>−15 | <br><br>+15 | <br><br>p+25,y+15 | <br><br>p−25,y−15 |
 |---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | vitl-320 | wflw | 1.61 | 1.78 | 1.63 | 1.58 | 1.60 | 1.55 | 1.55 | 1.56 | 1.78 |
 | vitl-320 | 300w | 1.12 | 1.25 | 1.15 | 1.09 | 1.10 | 1.08 | 1.08 | 1.08 | 1.22 |
