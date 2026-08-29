@@ -137,9 +137,12 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 ONNX (example for `--scheme ibug68`; `wflw98` / `cofw29` are exported as separate files):
 
 ```
-input   images      float32 [N, 3, S, S]   RGB, normalized as above. S = 320 / 256 / 96 (the preset's out_size)
-output  points      float32 [N, K, 2]      coordinates relative to the crop (0..1 inside the crop; points outside still get coordinates)
-output  vis_logits  float32 [N, K, 3]      visibility logits (0 = outside the image, 1 = occluded, 2 = visible)
+# RGB, normalized as above. S = 320 / 256 / 96 (the preset's out_size)
+input   images      float32 [N, 3, S, S]
+# coordinates relative to the crop (0..1 inside the crop; points outside still get coordinates)
+output  points      float32 [N, K, 2]
+# visibility logits (0 = outside the image, 1 = occluded, 2 = visible)
+output  vis_logits  float32 [N, K, 3]
 ```
 
 - Crop: a square around the head bbox with a margin of 0.05 of the side length, rendered at S×S (the same geometry as in training and evaluation). The downscaling method (bilinear / area, with or without antialiasing) changes the results by less than ±1%.
@@ -154,7 +157,7 @@ Prerequisites: Linux, Python 3.13 (pinned in `.python-version`), [uv](https://do
 git clone https://github.com/PINTO0309/High-Angle_Robust_Fast_FaceAlignment.git
 cd High-Angle_Robust_Fast_FaceAlignment
 uv sync --frozen
-uv run python -m unittest tests/test_model_arms.py      # sanity check (some tests are skipped without the weights)
+uv run python -m unittest tests/test_model_arms.py
 ```
 
 ### 4.1 Weights (`ckpts/`, none of them are bundled)
@@ -173,8 +176,10 @@ uv run python -m unittest tests/test_model_arms.py      # sanity check (some tes
 
 ```bash
 uv run python -m hrffa.dataset.convert --source all --data-root data --out datasets/unified
-uv run python -m hrffa.dataset.pseudolabel.run   ...   # run DEIMv2 for head boxes / face parts (cached)
-uv run python -m hrffa.dataset.pseudolabel.apply ...   # apply the cache to the unified annotations
+# run DEIMv2 for head boxes / face parts (cached)
+uv run python -m hrffa.dataset.pseudolabel.run   ...
+# apply the cache to the unified annotations
+uv run python -m hrffa.dataset.pseudolabel.apply ...
 uv run python -m hrffa.dataset.materialize --source all
 ```
 
@@ -187,21 +192,49 @@ See `--help` of each CLI for the arguments.
 uv run python -m hrffa.train.train_teacher --preset clean_v3
 
 # Students (online distillation from teacher clean_v3)
-uv run python -m hrffa.train.distill_student --preset student_s256_96gb_r2     # ViT-T @256
-uv run python -m hrffa.train.distill_student --preset student_hg0_wsd          # CNN @256
-uv run python -m hrffa.train.distill_student --preset student_s096_96gb_r2     # ViT-T @96 (fine-tuned from the 256 model)
-#   To resume, or to extend the constant-LR phase: edit epochs in the preset and add --resume runs/<preset>/<preset>_last.pt
+## ViT-T @256
+uv run python -m hrffa.train.distill_student --preset student_s256_96gb_r2
+## CNN @256
+uv run python -m hrffa.train.distill_student --preset student_hg0_wsd
+## ViT-T @96 (fine-tuned from the 256 model)
+uv run python -m hrffa.train.distill_student --preset student_s096_96gb_r2
+# To resume, or to extend the constant-LR phase: edit epochs in the preset and
+# add --resume runs/<preset>/<preset>_last.pt
 
 # Evaluation (4 instruments)
 B=runs/student_s256_96gb_r2/student_s256_96gb_r2_best_e0449_0.007970.pt
-uv run python -m hrffa.train.evaluate --ckpt $B --preset student_s256_96gb_r2 --use-ema --official
-uv run python -m hrffa.train.evaluate --ckpt $B --preset student_s256_96gb_r2 --use-ema --stratify-real
-uv run python -m hrffa.train.evaluate --ckpt $B --preset student_s256_96gb_r2 --use-ema --pose-stress --stress-n 300
-uv run python -m hrffa.train.evaluate --ckpt $B --preset student_s256_96gb_r2 --use-ema --style-shift --style-n 300
+uv run python -m hrffa.train.evaluate \
+--ckpt $B \
+--preset student_s256_96gb_r2 \
+--use-ema \
+--official
+
+uv run python -m hrffa.train.evaluate \
+--ckpt $B \
+--preset student_s256_96gb_r2 \
+--use-ema \
+--stratify-real
+
+uv run python -m hrffa.train.evaluate \
+--ckpt $B \
+--preset student_s256_96gb_r2 \
+--use-ema \
+--pose-stress \
+--stress-n 300
+
+uv run python -m hrffa.train.evaluate \
+--ckpt $B \
+--preset student_s256_96gb_r2 \
+--use-ema \
+--style-shift \
+--style-n 300
 
 # ONNX (fixed batch-1 graph + N-batch variant; parity and N-batch agreement verified with onnxruntime)
-uv run python -m hrffa.export.export_onnx --ckpt $B --preset student_s256_96gb_r2 --scheme ibug68 \
-    --output runs/student_s256_96gb_r2/student_s256_96gb_r2_e449_ibug68.onnx
+uv run python -m hrffa.export.export_onnx \
+--ckpt $B \
+--preset student_s256_96gb_r2 \
+--scheme ibug68 \
+--output runs/student_s256_96gb_r2/student_s256_96gb_r2_e449_ibug68.onnx
 
 # Results tables (history/050 format)
 uv run python scripts/make_results_tables.py > tables.md
