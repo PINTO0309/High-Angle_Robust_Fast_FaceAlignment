@@ -6,8 +6,8 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 - The teacher is a DINOv3 ViT-L/16 (320×320); the students are a ViT-T/16 (256 and 96 input) and a PP-HGNetV2-B0 based CNN (256). Students are trained by online distillation from the teacher and exported to ONNX graphs that run in 5–12 ms on a CPU.
 
 <p align="center">
-  <img src="history/assets/050/teacher_clean_v3_lookup_yawpitchroll_3x3.jpg" width="45%" alt="teacher clean_v3: extreme pitch/yaw tiles with roll 0..320 deg">
-  <img src="history/assets/050/student_vitt256_pitch_extremes_roll_3x3.jpg" width="45%" alt="student vitt-256: measured pitch extremes with roll">
+  <img src="history/assets/050/teacher_clean_v3_lookup_yawpitchroll_3x3.jpg" width="46%" alt="teacher clean_v3: extreme pitch/yaw tiles with roll 0..320 deg">
+  <img src="history/assets/050/student_vitt256_pitch_extremes_roll_3x3.jpg" width="46%" alt="student vitt-256: measured pitch extremes with roll">
 </p>
 
 <p align="center"><sub>Left: teacher vitl-320 on nine looking-up × profile tiles with a roll of 0–320° composited onto each tile.<br>Right: student vitt-256 on measured pitch extremes (+86° to −89°) with roll. Predictions only.</sub></p>
