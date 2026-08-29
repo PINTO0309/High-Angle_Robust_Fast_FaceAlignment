@@ -1,6 +1,6 @@
 # HRFFA: High-Angle Robust Fast FaceAlignment
 
-![GitHub](https://img.shields.io/github/license/PINTO0309/High-Angle_Robust_Fast_FaceAlignment?color=2BAF2B) [![DOI](https://zenodo.org/badge/1341204426.svg)](https://doi.org/10.5281/zenodo.22161810) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/PINTO0309/Angle_Robust_Fast_FaceAlignment)
+![GitHub](https://img.shields.io/github/license/PINTO0309/High-Angle_Robust_Fast_FaceAlignment?color=2BAF2B) [![DOI](https://zenodo.org/badge/1341204426.svg)](https://doi.org/10.5281/zenodo.22161810)
 
 A training, distillation and ONNX deployment pipeline for **whole-head face alignment that stays robust at extreme head poses while remaining light enough for CPU inference**.
 
