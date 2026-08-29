@@ -18,10 +18,10 @@ Excerpt from [history/050](history/050_results_tables.md) (inter-ocular NME %, l
 
 | Model | Input | Params | GMACs | GFLOPs | CPU ms | WFLW Full | WFLW Pose | 300W Full | COFW |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| [D-ViT (paper)](https://arxiv.org/abs/2411.07167) | 256 | 96.4M | ≈73 | ≈146 | – | 3.75 | 6.43 | 2.85 | 4.13 |
-| vitl-320 (teacher) | 320 | 308.2M | 131.3 | 262.6 | 520 | 1.51 | 2.54 | 1.03 | 1.21 |
+| [D-ViT (paper)](https://arxiv.org/abs/2411.07167) | 256 | 96.4M | ≈73.15 | ≈146.30 | – | 3.75 | 6.43 | 2.85 | 4.13 |
+| vitl-320 (teacher) | 320 | 308.2M | 131.32 | 262.63 | 520 | 1.51 | 2.54 | 1.03 | 1.21 |
 | vitt-256 | 256 | 9.0M | 2.05 | 4.09 | 12.4 | 3.36 | 5.64 | 2.66 | 2.76 |
-| hg0-256 | 256 | 1.63M | 0.70 | 1.40 | 5.2 | 5.32 | 9.53 | 3.87 | 3.77 |
+| hg0-256 | 256 | 1.6M | 0.70 | 1.40 | 5.2 | 5.32 | 9.53 | 3.87 | 3.77 |
 | vitt-096 | 96 | 9.0M | 0.43 | 0.85 | 4.6 | 5.14 | 8.65 | 3.86 | 3.90 |
 
 **How to read these numbers (important):** all splits of the real-image datasets — including WFLW test, 300W and COFW test — are used for training. The "official" numbers above therefore measure how well the models fit the training distribution and **must not be compared with published benchmark results**. The only unleaked instrument is `300wlp_val` (head-NME on a held-out 300W-LP subset; values in 050). The full tables — WFLW subsets, FR/AUC, breakdowns by pose (yaw / pitch / roll) and by image degradation, and the D-ViT paper values listed side by side with an explicit non-comparability note — follow in §1.1 (same content as 050 §2). The `D-ViT (paper)` row lists the published benchmark values of arXiv 2411.07167 (Tables 1 / 2, "Ours": 256×256 input, 8 prediction blocks = 96.4M parameters per its Table S1) for format reference only. The paper does not report FLOPs or latency; the GMACs / GFLOPs are our estimate from the [official code](https://github.com/Human3DAIGC/AccurateFacialLandmarkDetection) with its default arguments (8 prediction blocks, 32×32 heatmaps, depth 256, 256×256 input, all 8 stages, batch 1, same `FlopCounterMode` method as the other rows) and are approximate because that configuration has 101.1M parameters, about 5 % more than Table S1. Its COFW NME is normalized by the inter-pupil distance instead of inter-ocular, and its test sets are held out from training, so no ranking against the fit measures above is implied.
