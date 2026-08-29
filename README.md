@@ -36,7 +36,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 #### Table 1. NME (%, inter-ocular, lower is better)
 | Model | WFLW<br>Full | <br>Pose | <br>Exp | <br>Ill | <br>Mu | <br>Occ | <br>Blur | COFW<br>Full | 300W<br>Full | <br>Comm | <br>Chal |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| D-ViT (paper) | 3.75 | 6.43 | 3.85 | 4.06 | 3.57 | 4.47 | 4.37 | 4.13 | 2.85 | 2.43 | 4.56 |
+| [D-ViT (paper)]( https://arxiv.org/abs/2411.07167) | 3.75 | 6.43 | 3.85 | 4.06 | 3.57 | 4.47 | 4.37 | 4.13 | 2.85 | 2.43 | 4.56 |
 | vitl-320 | 1.51 | 2.54 | 1.55 | 1.47 | 1.42 | 1.56 | 1.58 | 1.21 | 1.03 | 0.96 | 1.34 |
 | vitt-256 | 3.36 | 5.64 | 3.43 | 3.25 | 3.19 | 3.56 | 3.60 | 2.76 | 2.66 | 2.36 | 3.90 |
 | hg0-256 | 5.32 | 9.53 | 5.54 | 5.16 | 5.09 | 6.29 | 6.04 | 3.77 | 3.87 | 3.37 | 5.96 |
@@ -45,7 +45,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 #### Table 2. FR10 (%, lower is better) and AUC10 (%, higher is better) on WFLW
 | Model | FR10<br>Full | <br>Pose | <br>Exp | <br>Ill | <br>Mu | <br>Occ | <br>Blur | AUC10<br>Full | <br>Pose | <br>Exp | <br>Ill | <br>Mu | <br>Occ | <br>Blur |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| D-ViT (paper) | 1.76 | 8.28 | 1.27 | 1.29 | 1.94 | 3.80 | 2.07 | 63.7 | 40.1 | 62.6 | 64.7 | 64.7 | 57.1 | 58.6 |
+| [D-ViT (paper)]( https://arxiv.org/abs/2411.07167) | 1.76 | 8.28 | 1.27 | 1.29 | 1.94 | 3.80 | 2.07 | 63.7 | 40.1 | 62.6 | 64.7 | 64.7 | 57.1 | 58.6 |
 | vitl-320 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 84.9 | 74.5 | 84.5 | 85.4 | 85.8 | 84.4 | 84.2 |
 | vitt-256 | 0.28 | 1.53 | 0.32 | 0.00 | 0.00 | 0.54 | 0.52 | 66.5 | 43.9 | 65.7 | 67.5 | 68.2 | 64.5 | 64.1 |
 | hg0-256 | 7.00 | 32.21 | 5.73 | 5.44 | 6.31 | 13.04 | 9.44 | 49.2 | 17.5 | 46.7 | 50.3 | 50.2 | 42.4 | 42.8 |
