@@ -1,0 +1,6 @@
+# baseline v5.1 起点のファインチューニング標準ベース(history/023)
+# v5.1 = v5 レシピ + patch_instance_norm。v5.1 の重みをロードするには
+# patch_instance_norm: true が必須(IN パラメータが state_dict に含まれるため)
+_base_: abl_v5_ft_base
+init_from: "runs/*/abl_v5_innorm_96gb_best_*.pt"
+patch_instance_norm: true

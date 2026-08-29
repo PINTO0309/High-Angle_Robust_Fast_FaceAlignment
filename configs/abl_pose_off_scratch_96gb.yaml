@@ -1,0 +1,6 @@
+# B'(当初想定): ゼロから学習・姿勢監督なし(coord + vis のみ)
+# 比較相手は baseline(ゼロから 30ep・姿勢監督あり)。スケジュールは baseline と完全一致
+# (epochs 30 / freeze 1 / warmup 1000 = TrainConfig 既定値)、損失重みのみ差分。
+w_rot: 0.0
+w_roll: 0.0
+w_yaw_weak: 0.0

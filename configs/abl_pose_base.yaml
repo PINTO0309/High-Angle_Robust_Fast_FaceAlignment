@@ -1,0 +1,6 @@
+# 姿勢マルチタスク・アブレーション共通(history/012)
+# 1 周目の最高性能重みを初期値としたファインチューニング比較(2026-08-21 ユーザー決定)
+init_from: "runs/*/abl_pose_off_scratch_96gb_best_*.pt"
+epochs: 15
+freeze_backbone_epochs: 0   # 学習済み初期値のため凍結ウォームアップ不要
+warmup_steps: 200

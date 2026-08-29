@@ -1,0 +1,15 @@
+# A1 の 2 周目(history/043 §8 → 044 で WSD に改定、2026-08-28): 旧 A1(教師 clean_v2、cosine 100ep)の best e99 を
+# 初期重みに、教師 clean_v3 + WSD(student_s_base)で学習する「加速版デプロイ候補」。
+#   - ゼロから学習する A1(student_s256_96gb、045 の基準)とは init だけが異なる。A1-WSD の完走を待たずに
+#     clean_v3 完走直後から回せる
+#   - init は退避した旧 run dir を明示(runs/student_s256_96gb_cos100/)。存在しなければ起動時にエラーで止まる
+#     (辞書順で別 run を拾う事故を避けるため、glob は run dir まで固定)
+#   - 序盤にピーク LR で一時悪化(旧 r2 の e0-25 と同型)が出るのは想定内。判定は 044 §4 の窓平均ルール
+# 実行(96GB): uv run python -m hrffa.train.distill_student --preset student_s256_96gb_r2
+_base_: student_s256_96gb
+init_from: "runs/student_s256_96gb_cos100/student_s256_96gb_best_*.pt"
+# 2026-08-28 e194 判定(history/048): 一定 LR 区間がまだ降下中(20ep 窓 −2.7%、300wlp_val −5.2%)のため
+# 一定区間を 100 epoch 延長(200 → 300)。e250 判定: なお降下中(窓 −2.5%、300wlp_val −3.8%、勾配 −1.2%/10ep)
+# → さらに 300 → 400 に延長(decay 50 は不変、上限 450)。頭打ちが出たら epochs = 現 epoch + 50 に書き換えて
+# --resume で即 decay へ。--resume で LR は不連続にならない
+epochs: 450

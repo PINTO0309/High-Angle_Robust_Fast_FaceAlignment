@@ -1,0 +1,3 @@
+# C(任意): GT 姿勢のみ(dir8 弱教師オフ)
+_base_: abl_pose_base
+w_yaw_weak: 0.0

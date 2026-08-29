@@ -1,0 +1,7 @@
+# CNN 学生(049)+ POPoS 型デコード(046 D8): 32×32(stride 8)のメモリ格子に距離マップを出し、
+# top-6 アンカーの multilateration で座標を復元する。coord_head の代わりに双線形形式(dist_q / dist_m)を使う
+_base_: student_hg0_wsd
+head: popos
+popos_topk: 6
+w_dist: 1.0
+popos_radius: 6.0

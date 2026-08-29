@@ -1,0 +1,5 @@
+# D6: デコーダ局所項による座標の反復精密化(history/045 §3 Tier 3、LESA 由来)。推定座標で memory を
+# バイリニア採取した局所特徴を、ゲート(動的融合)でクエリに混ぜてデコーダを再適用し、座標を残差で
+# 2 回精密化する。vis / KD トークンは 1 回目のデコーダ出力(教師と同じ意味)。delta_head は zero-init
+_base_: student_s256_96gb
+dec_local_iters: 2

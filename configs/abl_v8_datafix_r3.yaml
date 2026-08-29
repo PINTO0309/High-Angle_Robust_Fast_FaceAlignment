@@ -1,0 +1,9 @@
+# v8 再学習 r3: 036 §10 で規約を最終確定(鏡映等変: 幻は常に鼻側、可視は
+# yaw+ で L / yaw− で R)したデータでの v8 レシピ再実行。
+# r2 は yaw− が誤方向ラベル(spatial_v1_neg)のまま 48ep+ 学習したため打ち切り、
+# init = r2 の現 best、0 epoch から(規約シフトの再学習は ~5ep で吸収される実績)。
+# 前提: 実行マシンに 036 §10 後の jsonl 5 本が同期済みであること
+# 受入: 帯別診断で両符号とも目眉/他 比 ~1.0(基準: qa_yaw_band_r3init_baseline)
+#       + 4 点セット(vs v6 / v8e36)
+_base_: abl_v8_datafix
+init_from: "runs/*/abl_v8_datafix_r2_best_*.pt"

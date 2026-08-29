@@ -1,0 +1,16 @@
+# 教師 v3: baseline v2 から selftrain_v1(実写未ラベル頭部の擬似ラベル)込みでファインチューニング
+# 狙い: 実写大姿勢ギャップ(WFLW pose 10.4%)の縮小(history/015)
+init_from: "runs/*/abl_pose_off_scratch_96gb_best_*.pt"
+epochs: 15
+freeze_backbone_epochs: 0
+warmup_steps: 200
+w_rot: 0.0
+w_roll: 0.0
+w_yaw_weak: 0.0
+sources:
+  - {name: 300wlp, weight: 0.50}
+  - {name: synth_dwarp, weight: 0.13}
+  - {name: wflw, weight: 0.15}
+  - {name: selftrain_v1, weight: 0.13}
+  - {name: 300w, weight: 0.05}
+  - {name: cofw, weight: 0.04}

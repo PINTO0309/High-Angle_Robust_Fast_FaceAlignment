@@ -1,0 +1,7 @@
+# baseline v6 起点のファインチューニング標準ベース(history/027)
+# レシピは v6 と同一(v5.1 構成 + selftrain_v3 データ)で init のみ v6 best。
+# 027 §1 の知見を反映し、検証学習は 30ep + 10ep スナップショットを既定とする
+# (昇格級の本学習は 60-90ep を推奨)
+_base_: teacher_vitl_v6_96gb
+epochs: 30
+init_from: "runs/*/teacher_vitl_v6_96gb_best_*.pt"

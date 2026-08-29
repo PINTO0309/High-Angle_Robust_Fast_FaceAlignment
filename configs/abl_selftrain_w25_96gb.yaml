@@ -1,0 +1,9 @@
+# B: selftrain 重み 0.13 → 0.25(擬似ラベルの用量反応。劣化なら確証バイアスの兆候)
+_base_: abl_v3_ft_base
+sources:
+  - {name: 300wlp, weight: 0.42}
+  - {name: synth_dwarp, weight: 0.11}
+  - {name: wflw, weight: 0.14}
+  - {name: selftrain_v1, weight: 0.25}
+  - {name: 300w, weight: 0.05}
+  - {name: cofw, weight: 0.03}

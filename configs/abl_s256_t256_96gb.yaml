@@ -1,0 +1,3 @@
+# A5: 教師入力 320 → 256(同解像度 KD vs クロス解像度 KD、history/026 §3)
+_base_: student_s_base
+teacher_size: 256

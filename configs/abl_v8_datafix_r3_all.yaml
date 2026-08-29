@@ -1,0 +1,12 @@
+# r3 の続き(resume 用): 実写ソース(wflw/300w/cofw)のテスト split も学習に投入する。
+# ユーザー決定(2026-08-26): 論文群のベンチと同じ土俵で競う意図はなく、汎化のために
+# 実写 GT を全量使う。評価側(テスト split・val セット)は無変更で、以後の公式数値は
+# 「学習済みデータへの適合度」として読む。
+# 実行(96GB): r3 を中断し、その last.pt から resume
+#   uv run python -m hrffa.train.train_teacher --preset abl_v8_datafix_r3_all \
+#     --resume runs/abl_v8_datafix_r3/abl_v8_datafix_r3_last.pt
+# (スケジュールは optimizer step 定義のため、データ量の増加で LR 曲線・epoch 数は不変)
+_base_: abl_v8_datafix_r3
+train_all_splits: true
+# モーションブラー拡張(history/038: mblur21 で +30〜75% の劣化を実測 → 有効化)
+motion_blur_prob: 0.25

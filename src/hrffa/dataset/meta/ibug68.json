@@ -1,0 +1,25 @@
+{
+  "scheme": "ibug68",
+  "num_points": 68,
+  "description": "iBUG 300W 68-point markup (0-indexed). 300W / 300W-LP 系で使用。",
+  "flip_mapping": [
+    [0, 16], [1, 15], [2, 14], [3, 13], [4, 12], [5, 11], [6, 10], [7, 9],
+    [17, 26], [18, 25], [19, 24], [20, 23], [21, 22],
+    [31, 35], [32, 34],
+    [36, 45], [37, 44], [38, 43], [39, 42], [40, 47], [41, 46],
+    [48, 54], [49, 53], [50, 52], [55, 59], [56, 58],
+    [60, 64], [61, 63], [65, 67]
+  ],
+  "edges": [
+    {"closed": false, "indices": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], "name": "jaw"},
+    {"closed": false, "indices": [17, 18, 19, 20, 21], "name": "right_brow"},
+    {"closed": false, "indices": [22, 23, 24, 25, 26], "name": "left_brow"},
+    {"closed": false, "indices": [27, 28, 29, 30], "name": "nose_bridge"},
+    {"closed": false, "indices": [31, 32, 33, 34, 35], "name": "nose_base"},
+    {"closed": true, "indices": [36, 37, 38, 39, 40, 41], "name": "right_eye"},
+    {"closed": true, "indices": [42, 43, 44, 45, 46, 47], "name": "left_eye"},
+    {"closed": true, "indices": [48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59], "name": "outer_lip"},
+    {"closed": true, "indices": [60, 61, 62, 63, 64, 65, 66, 67], "name": "inner_lip"}
+  ],
+  "notes": "flip_mapping は水平反転時の点 ID 入れ替え(記載外の点は自己対応)。right/left は被写体基準ではなく画像内の慣例名。"
+}

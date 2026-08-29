@@ -1,0 +1,10 @@
+# v8 再学習 r2: 036 で統一したデータ(300wlp 対称化 + fold 0.15hb + synth_dwarp 867 件
+# + selftrain 修復 3 本)での v8 レシピ再実行。init は v8 の現 best、0 epoch から。
+# レシピ(90ep・pad 0.05・EMA 0.999・half-cosine)は abl_v8_datafix と完全同一 —
+# 差分は「データ」と「init」のみで、036 修正の効果を v8 と同条件で測る。
+# (v9 = EMA 無効 + sched_full_anneal 案は 2026-08-25 ユーザー判断で破棄。
+#  sched_full_anneal / ema_decay=0 の実装自体は config で選べる形で温存)
+# 前提: 実行マシンに修正済み jsonl 5 本が同期済みであること(036 §8)
+# 受入: 036 帯別診断で両符号とも目眉/他 比 ~1.0 回復 + 4 点セット
+_base_: abl_v8_datafix
+init_from: "runs/*/abl_v8_datafix_best_*.pt"

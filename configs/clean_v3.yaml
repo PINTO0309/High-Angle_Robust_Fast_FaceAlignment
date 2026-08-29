@@ -1,0 +1,20 @@
+# clean_v3(history/044): デプロイ用教師の再収束。clean_v2 best を init に WSD スケジュール
+# (warmup 200 step → 一定 LR 160 epoch → 末尾 40 epoch で cosine 減衰 → 0)で 200 epoch
+# (2026-08-27 ユーザー決定「教師を 200 epoch として実装」)。
+#   - 根拠: clean_v1 / clean_v2 とも末尾 10 epoch で学習損失と適合側 val が −3〜−6% 下がり続けたまま
+#     LR が尽きて終了(044 §1)。学生 A1 の 2 周目でも restart 後に前周の終端を更新し続けた
+#   - 一定区間の LR は epochs に依存しない → resume で epochs を書き換えて延長/短縮できる。
+#     監視: val_mean / wflw_test の 20 epoch 窓平均で見る(EMA なし一定 LR では単 epoch は ±3〜4% 揺れる)。
+#     窓平均の差が −1% 未満かつ 40 epoch 勾配が −0.5%/10ep 未満なら頭打ち(044 §4)→
+#     `epochs: <現 epoch + 40>` に書き換えて --resume(即 decay へ)。
+#     e160 で降下中なら epochs を増やして --resume(一定区間の延長)
+#   - EMA なし・全 split・件数比例・幾何・ピーク LR は clean_v2 と同じ。10 epoch ごとの snapshot は
+#     「一定区間の任意点から decay をかける」用途に使える
+#   - 序盤はピーク LR で一時的な悪化(clean_v2 の e4-16、学生 r2 の e0-25 と同型)が出るのは想定内
+#   - コスト: 4.2 分/epoch(241 s + eval)→ 200 epoch ≈ 14 時間
+# 実行(96GB): uv run python -m hrffa.train.train_teacher --preset clean_v3
+_base_: clean_v2
+init_from: "runs/clean_v2/clean_v2_best_*.pt"
+lr_schedule: wsd
+epochs: 200
+decay_epochs: 40

@@ -1,0 +1,16 @@
+# 開発 PC(8GB)での蒸留パイプライン動作確認専用。
+# 本実験の教師は v6 固定(student_s_base)だが、スモークは手元にある v5.1 を使う
+_base_: student_s_base
+teacher_preset: abl_v5_innorm_96gb
+teacher_ckpt: "runs/abl_v5_innorm_96gb/abl_v5_innorm_96gb_best_*.pt"
+batch_size: 2
+grad_accum: 1
+steps_per_epoch: 8
+epochs: 1
+decay_epochs: 0   # WSD 継承分(1 epoch のスモークでは減衰なし)
+num_workers: 2
+warmup_steps: 2
+eval_n: 8
+val_render_n: 0
+save_every_steps: 4
+log_every: 2

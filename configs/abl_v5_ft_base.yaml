@@ -1,0 +1,4 @@
+# baseline v5 起点のファインチューニング標準ベース(history/021)
+# レシピは abl_v4_ft_base と同一(v5 = v4 レシピ + Flip 修正データ)で init のみ v5 best
+_base_: abl_v4_ft_base
+init_from: "runs/*/teacher_vitl_v5_96gb_best_*.pt"

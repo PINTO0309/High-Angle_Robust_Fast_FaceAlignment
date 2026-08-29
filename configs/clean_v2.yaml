@@ -1,0 +1,23 @@
+# clean_v2(history/040): clean_v1 best を init に、実写のテスト split も投入した最終モデル用 FT。
+#   - clean_v1 は未見実写(wflw/cofw test)で e20-30 に頭打ち。以後の val 降下は 300wlp_val /
+#     300w_vc(既知個体)への適合 → 計測用モデルは clean_v1、デプロイ用が本 run という 2 段構え
+#   - train_all_splits: true → 以後の val/best は「学習済みデータへの適合度」(未見計器は
+#     300wlp_val 241 件のみ)。決定は clean_v1 側の計器で行う
+#   - ema_decay 0.0(EMA 無効)+ sched_full_anneal: true(035: EMA なしでは half-cosine の
+#     終端 0.5×ピークで生重みが揺れ続けるため、cosine を 0 まで下げ切る明示的焼きなましが必須)
+#   - epochs 40 × 400 step = 16k バッチ(8k optimizer step)≈ N=34,986 を 44 周。
+#     +3.7k 件の実写 GT 吸収と焼きなましには十分(clean_v1 の未見指標は 20-30ep で飽和)
+#   - 重みはレコード数比例で再計算(実写のテスト split 込み)
+_base_: clean_v1
+init_from: "runs/*/clean_v1_best_*.pt"
+train_all_splits: true
+ema_decay: 0.0
+sched_full_anneal: true
+epochs: 40
+sources:
+  - {name: 300wlp, weight: 0.33}
+  - {name: wflw, weight: 0.29}
+  - {name: selftrain_v2, weight: 0.14}
+  - {name: selftrain_lookup, weight: 0.08}
+  - {name: 300w, weight: 0.11}
+  - {name: cofw, weight: 0.05}

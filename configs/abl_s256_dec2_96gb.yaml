@@ -1,0 +1,3 @@
+# A3a: デコーダ 3 層 → 2 層(軽量化下限の確認、history/026 §3)
+_base_: student_s_base
+dec_layers: 2

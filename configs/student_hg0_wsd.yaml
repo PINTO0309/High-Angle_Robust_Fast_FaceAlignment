@@ -1,0 +1,19 @@
+# 軽量 CNN 学生(history/049): PP-HGNetV2-B0(ImageNet 事前学習、stage0-2 = stride 16 まで 0.75M)+
+# FPN 風ネック(stride 8、32×32 メモリ、128ch)+ 小型クエリデコーダ(d 128、2 層、4 ヘッド、FFN 512)。
+# 合計 ≈ 1.6M(予算 2.5M 以下)。教師 clean_v3 から KD(coord / vis / tok。tok はアダプタ 128→256 経由)。
+# 入力正規化は vitt と同じ center05(2026-08-28 ユーザー決定)。事前学習重みは ImageNet 前提のため、stem1 conv の重みと
+# 後続 BN の running_mean に折り込む(入口の演算なし。境界 1 画素を除き厳密、049 追記)。
+# 入口の IN は vitt と同じく有効(stem 出力 16ch @ stride 4 に InstanceNorm、student_s_base から継承)。D5-D7 は非対応
+_base_: student_s256_96gb
+backbone: hgnetv2_b0
+input_norm: center05
+feat_stride: 8
+cnn_feat_ch: 128
+d_model: 128
+dec_layers: 2
+dec_heads: 4
+dec_ffn: 512
+# スケジュール(2026-08-28 ユーザー決定): 最初から 400 epoch = 一定 300 + decay 100(student_s_base の 250 は
+# r2(ViT-T)で一定 400 まで延長が必要だったため、CNN 学生は延長前提にしない)。POPoS 版も継承する
+epochs: 400
+decay_epochs: 100

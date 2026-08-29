@@ -1,0 +1,73 @@
+# 学生 S(vitt)蒸留の共通ベース(history/026)
+# 実行: uv run python -m hrffa.train.distill_student --preset <name>
+backbone: vitt
+# 学生系の入力正規化は ((x/255)-0.5)/0.5 に統一(2026-08-23 ユーザー決定。
+# vitt 事前学習重みは conv 折り込みで無劣化変換。教師系は ImageNet のまま)
+input_norm: center05
+d_model: 256          # 教師と一致させ dec_tokens KD を射影なしで受ける
+dec_layers: 3
+patch_instance_norm: true
+out_size: 256         # 学生入力解像度(評価もこの解像度)
+teacher_size: 320     # レンダリング/教師入力解像度
+# クロップ幾何は教師 clean_v1/v2 と同一に揃える(2026-08-27 ユーザー決定、026 追記)。
+# 026 設計時の教師 v6 は pad 0.15 だったが、030 で教師が pad 0.05 に移行した後も学生ベースが
+# 追随しておらず、KD では教師が学習範囲外の小さい顔(pad 0.15、scale 0.9 まで)で目標を作っていた
+# (実測: clean_v2 e36 を pad 0.15 で評価すると WFLW +4.6% / 300W +7.1% / COFW +2.8% 劣化)。
+# 学生の顔占有率も 0.69-0.85 → 0.82-0.93(有効解像度 +17%)。エンベロープ条件
+# 0.5·1.02/1.1 + 0.03 = 0.494 ≤ 0.5。bbox ジッタ耐性は 030 §3.5(P95 2.0% < 5%)で確認済み
+crop_pad: 0.05
+scale_range: [0.9, 1.02]
+translate: 0.03
+# 教師 = clean_v3(WSD 200 epoch で再収束した教師、044。2026-08-28 ユーザー決定「clean_v3 を教師に採用する前提」。
+# デプロイ用教師 base の交代は完走後の受入 → 昇格承認で確定)。glob は run dir 固定(退避 run の誤選択防止)。
+# clean_v1(計測用 baseline v7)を教師にする学生トラックは置かない
+teacher_preset: clean_v3
+teacher_ckpt: "runs/clean_v3/clean_v3_best_*.pt"
+# KD(A1 フル構成が既定)
+w_kd_coord: 0.5
+w_kd_vis: 0.5
+w_kd_tok: 0.2
+# 学習(バックボーンは蒸留済み事前学習重みのため最初から解凍・高め lr)
+# スケジュール = 教師と同じ WSD(044、2026-08-28 ユーザー決定): warmup 500 step → 一定 LR → 末尾 decay_epochs を
+# cosine で 0 へ。A1(cosine 100 epoch = 40k step)は収束前に LR が尽きていた(043 §8 の 2 周目で判明)ため、
+# 一定区間の予算を 200 epoch(80k step、A1 の 2 倍)、decay を 50 epoch(教師と同じ 20%)とする。
+# 1 epoch = 400 step(≈1.1 周)、1.75 分/epoch → 上限 250 epoch ≈ 7.3 時間。
+# 運用は 044 §4 と同じ: val_mean / wflw_test の 20 epoch 窓平均で頭打ち(窓差 −1% 未満かつ 40ep 勾配
+# −0.5%/10ep 未満)を確認したら `epochs: <現 epoch + 50>` に書き換えて --resume(即 decay)。
+# 教師は e120 で頭打ちしたので、学生も e120-200 のどこかで decay に入る見込み。
+# 学生は 10 epoch snapshot を残さない方針(ユーザー決定)のため、decay 完了後に一定区間を延長したい場合は
+# _last.pt からの warm restart になる(一定区間の延長は decay 前に判断する)
+lr_schedule: wsd
+steps_per_epoch: 400
+epochs: 250
+decay_epochs: 50
+freeze_backbone_epochs: 0
+lr_backbone: 1.0e-4
+lr_head: 2.0e-4
+warmup_steps: 500
+batch_size: 96
+grad_accum: 1
+erase_prob: 0.5
+# モーションブラー拡張(history/038: mblur21 で +30〜75% の劣化を実測 → 有効化)
+motion_blur_prob: 0.25
+# 姿勢監督は恒久除外(012)
+w_rot: 0.0
+w_roll: 0.0
+w_yaw_weak: 0.0
+# 実写 3 ソースの全 split(テスト含む)を教師あり損失に使う = 教師 clean_v2 と同じデータ方針
+# (2026-08-27 ユーザー決定)。val の wflw_test / cofw_test / 300w_vc は学習済み画像への適合度になり、
+# 未見の計器は 300wlp_val(241 件)と外部の実写見上げ 200 枚(未収集)のみ。
+# Phase A のアーム間比較は「全アーム同一リーク条件の相対比較」として読む
+train_all_splits: true
+# データ方針は教師と同一: 300wlp は |yaw|≤10 のみ、synth_dwarp / selftrain_v1 は除外(039)。
+# 重みは学習レコード数比例(clean_v2 と同じ): N = 34,986
+#   (300wlp 11,587 / wflw 10,000 / v2 4,864 / lookup 2,846 / 300w 3,837 / cofw 1,852)
+source_yaw_max:
+  300wlp: 10
+sources:
+  - {name: 300wlp, weight: 0.33}
+  - {name: wflw, weight: 0.29}
+  - {name: selftrain_v2, weight: 0.14}
+  - {name: selftrain_lookup, weight: 0.08}
+  - {name: 300w, weight: 0.11}
+  - {name: cofw, weight: 0.05}

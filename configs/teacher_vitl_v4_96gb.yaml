@@ -1,0 +1,22 @@
+# 教師 v4: v3 + 第2ラウンド採用分 + 生成画像 selftrain_v2(history/015 §6.8・017 §5)
+#   - 入力 320(res320 採用: トークン密度 20x20)
+#   - random erasing p=0.5(erase 採用)
+#   - 擬似ラベル総重み 0.25(w25 採用)を v1 0.15 + v2 0.10 に配分
+#   - synth10k の判定が「採用」なら synth_dwarp を synth_dwarp10k に差し替えること
+init_from: "runs/*/teacher_vitl_v3_96gb_best_*.pt"
+epochs: 15
+freeze_backbone_epochs: 0
+warmup_steps: 200
+w_rot: 0.0
+w_roll: 0.0
+w_yaw_weak: 0.0
+out_size: 320
+erase_prob: 0.5
+sources:
+  - {name: 300wlp, weight: 0.42}
+  - {name: synth_dwarp, weight: 0.11}
+  - {name: wflw, weight: 0.14}
+  - {name: selftrain_v1, weight: 0.15}
+  - {name: selftrain_v2, weight: 0.10}
+  - {name: 300w, weight: 0.05}
+  - {name: cofw, weight: 0.03}

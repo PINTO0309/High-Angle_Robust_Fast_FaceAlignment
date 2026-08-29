@@ -1,0 +1,3 @@
+# A4: 学生 IN off(021 §5.3 の宿題。style-shift 評価で判定、history/026 §3)
+_base_: student_s_base
+patch_instance_norm: false

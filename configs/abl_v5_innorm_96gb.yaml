@@ -1,0 +1,7 @@
+# innorm 再検証(history/021): patch embed 直後の token 軸 InstanceNorm
+# 017 §5.4(v3 素体への単独付加)では erase/res320 に劣後し教師不採用だったが、
+# 今回は条件が異なる: ①完成レシピ(res320+erase+selftrain)への追加として検証
+# ②Flip 修正済みデータ(history/020) ③スタイルシフト評価(evaluate --style-shift)で
+# 原典 PersonViT の主効果(スタイル頑健化)を今回は直接測定する
+_base_: abl_v5_ft_base
+patch_instance_norm: true

@@ -1,0 +1,166 @@
+version: 1
+
+api:
+  model: gpt-image-2
+  endpoint: /v1/images/generations
+  completion_window: 24h
+  quality: low
+  output_format: jpeg
+  output_compression: 92
+  background: opaque
+  n: 1
+  allowed_sizes: [1024x1024, 1024x1536, 1536x1024]
+
+storage:
+  format: jpeg
+  quality: 92
+
+auto_correction:
+  enabled_stages: [lookup]
+  max_quality_retries: 2
+  detector_score_threshold: 0.25
+  head_height_ratio: {min: 0.25, max: 0.50}
+  head_height_prompt_target: {min: 0.36, max: 0.42}
+  # Prompts still target 0.50.  The hard gate allows 0.02 detector-box jitter.
+  margin_min_head_ratio: 0.48
+  require_single_head: false
+  require_body_detection: true
+  reject_back: true
+  reject_duplicates: true
+
+pseudo_label:
+  teacher_tta_max_std_norm: 0.03
+
+stages:
+  lookup:
+    count: 3000
+    # One logical Production run.  The first 100 requests are held as the
+    # mandatory in-run drift gate; the remaining 2,900 are released only after
+    # the report passes.
+    shard_sizes: [100, 2900]
+    bin_counts: [600, 750, 600, 300, 300, 300, 150]
+    early_drift_check:
+      count: 100
+      bin_counts: [20, 25, 20, 10, 10, 10, 5]
+      minimum_match_rate: 0.80
+      minimum_bin_match_rate: 0.60
+
+bins:
+  - id: pitch_up_20_40
+    label: Pitch +20..+40
+    pitch: {mode: fixed_sign, sign: 1, min: 20, max: 40}
+    yaw: {mode: signed_abs, min: 4, max: 22}
+    cam: {mode: fixed, value: 0}
+    anchor: "The physical action must visibly force a moderate upward gaze: nostrils clearly visible, underside of the chin beginning to show, eyebrows visually closer to the eyes, and gaze unmistakably above the camera. A level frontal face is a failed image. Use a medium-close upper-torso composition with head height near 40%, never a full-body view."
+
+  - id: pitch_up_40_60
+    label: Pitch +40..+60
+    pitch: {mode: fixed_sign, sign: 1, min: 40, max: 60}
+    yaw: {mode: signed_abs, min: 4, max: 22}
+    cam: {mode: fixed, value: 0}
+    anchor: "The physical action must force a strong upward gaze: underside of jaw and front of neck clearly exposed, forehead receding, eyes visibly narrowed, and the nose overlapping the eyes from below. Do not relax this into a frontal portrait. Use a medium-close upper-torso composition with head height near 40%, never a full-body view."
+
+  - id: pitch_up_60_90
+    label: Pitch +60..+90
+    pitch: {mode: fixed_sign, sign: 1, min: 60, max: 90}
+    yaw: {mode: signed_abs, min: 4, max: 22}
+    cam: {mode: fixed, value: 0}
+    anchor: "Use visible body or furniture support for the deep extension. The face plane is nearly horizontal; jaw underside and nostrils dominate, eyes compress near the upper edge of the face, and the throat is fully stretched. Use a medium-close upper-torso composition with head height near 40%."
+
+  - id: pitch_up_90_120
+    label: Pitch +90..+120
+    pitch: {mode: fixed_sign, sign: 1, min: 90, max: 120}
+    yaw: {mode: signed_abs, min: 4, max: 18}
+    cam: {mode: fixed, value: 0}
+    anchor: "The torso and shoulders must rest on a visible support while the complete head hangs backward beyond the support edge. This is past vertical, not merely face-up: the face points skyward and slightly behind the body, the chin is visibly higher and farther back than the forehead, and a side or three-quarter camera view proves the reversal. Use a medium-close upper-torso composition with head height near 40%."
+
+  - id: camera_low_20_60
+    label: Camera 20..60 below, pitch +0..+30
+    pitch: {mode: fixed_sign, sign: 1, min: 0, max: 30}
+    yaw: {mode: signed_abs, min: 4, max: 24}
+    cam: {mode: fixed_sign, sign: -1, min: 20, max: 60}
+    anchor: "A genuine worm's-eye photograph from waist, child, pet, or floor height. Perspective makes the upper torso converge upward; underside of chin and nose are visible, while the complete head and shoulders remain readable. Frame only the upper torso from below, with head height near 40%; never show a distant full body."
+
+  - id: combined_pitch_30_60_yaw_30_90
+    label: Pitch +30..+60 and yaw ±30..±90
+    pitch: {mode: fixed_sign, sign: 1, min: 30, max: 60}
+    yaw: {mode: signed_abs, min: 30, max: 90}
+    cam: {mode: fixed, value: 0}
+    anchor: "A clear three-quarter or profile view looking up-and-away. Both upward pitch and sideward yaw must be unmistakable; the near ear and raised jawline are prominent, with some facial evidence and never a back-of-head view. Use a medium-close upper-torso composition with head height near 40%, never a distant environmental portrait."
+
+  - id: combined_pitch_60_90_yaw_30_60
+    label: Pitch +60..+90 and yaw ±30..±60
+    pitch: {mode: fixed_sign, sign: 1, min: 60, max: 90}
+    yaw: {mode: signed_abs, min: 30, max: 60}
+    cam: {mode: fixed, value: 0}
+    anchor: "A supported steep upward gaze turned aside. Show an oblique jaw underside, prominent ear and jawline, compressed eyes, visible throat, and a coherent reclined or lying body posture. Use a medium-close upper-torso composition with head height near 40%."
+
+prompt:
+  preamble: "Create one photorealistic, unedited-looking ordinary-camera photograph of one fictional adult aged 18 to 80. The person must not resemble any real public or private individual. This is upward-head-pose training data, so a frontal or level gaze is unusable."
+  framing: "Use a medium-close upper-torso photograph, never a full-body shot and never a distant environmental portrait. Place the complete head at the exact horizontal and vertical center of the canvas, with the entire hair/skull/face/chin bounding rectangle inside the central 60% of the canvas; crop furniture and lower torso instead of pushing the head toward an edge. Show the entire hair, skull, face, chin, neck, and both shoulders, with the lower torso continuing naturally beyond the bottom frame edge. Keep complete-head height between 25% and 50% of image height, targeting 36% to 42%. Leave clear empty margin on every side equal to at least half the head size, including extra headroom above the raised chin. Never crop hair, crown, jaw, or chin."
+  pose: "Intended head-relative-to-camera angles are pitch {pitch:+d} degrees upward, yaw {yaw:+d} degrees, camera elevation {cam:+d} degrees, and roll 0 degrees. The scenario and anatomy must visibly realize these angles rather than merely suggesting that the eyes look upward. Keep roll near zero and never show a pure back-of-head."
+  body_integrity: "The neck, shoulders, torso, limbs, clothing, and all support surfaces must be anatomically continuous and physically coherent. Either show the visible body normally or occlude it naturally behind a clearly visible real object. Never let anatomy fade, dissolve, terminate without an occluder, or merge into the floor, wall, chair, bed, clothing, or background."
+  realism: "Use a natural real-world background, plausible posture and gravity, readable facial lighting, realistic skin pores and hair, correct nostrils, teeth, eye placement, and chin-neck anatomy. No illustration, anime, CGI, beauty-filter skin, text, watermark, border, collage, heavy blur, or visible AI artifact."
+  backgrounds:
+    - a lived-in home interior
+    - a city sidewalk
+    - a public building interior
+    - a quiet park
+    - a clinic treatment room
+    - a salon
+    - a sports venue
+    - a workshop
+    - a garden
+    - a train station
+  postures:
+    pitch_up_20_40:
+      - {scenario: "watching a wall-mounted television clearly above eye level", backgrounds: [a lived-in living room, a casual restaurant lounge]}
+      - {scenario: "talking to an adult standing on a balcony overhead", backgrounds: [a residential courtyard, a city sidewalk below an apartment balcony]}
+      - {scenario: "checking an object on the very top of a tall shelf", backgrounds: [a public library aisle, a grocery store aisle, a workshop storage area]}
+      - {scenario: "watching a presentation screen from the front row", backgrounds: [a lecture hall, a conference room]}
+      - {scenario: "admiring the upper stories of a tall building from street level", backgrounds: [a city sidewalk, an office plaza]}
+      - {scenario: "tracking a distant airplane high in the sky", backgrounds: [a quiet park, an airport observation area]}
+    pitch_up_40_60:
+      - {scenario: "watching fireworks directly overhead", backgrounds: [an evening park, a public festival field]}
+      - {scenario: "following a kite high overhead", backgrounds: [a windy park, an open beach]}
+      - {scenario: "changing a ceiling light bulb while standing securely", backgrounds: [a lived-in home interior, a workshop]}
+      - {scenario: "painting the upper edge of a ceiling", backgrounds: [a home renovation interior, a workshop room]}
+      - {scenario: "looking up into the high vault of a cathedral", backgrounds: [a cathedral nave, a historic public hall]}
+      - {scenario: "stargazing while standing", backgrounds: [a dark garden, a quiet open field]}
+    pitch_up_60_90:
+      - {scenario: "reclined in a dentist chair while looking toward the examination lamp", backgrounds: [a clinic treatment room]}
+      - {scenario: "reclined in a barber chair while the underside of the chin is shaved", backgrounds: [a barbershop]}
+      - {scenario: "sunbathing face-up on a supported lounge chair", backgrounds: [a garden patio, a poolside deck]}
+      - {scenario: "lying on grass while watching something overhead", backgrounds: [a quiet park, a garden lawn]}
+      - {scenario: "resting against a high padded headrest while applying eye drops", backgrounds: [a clinic waiting room, a lived-in home interior]}
+    pitch_up_90_120:
+      - {scenario: "lying with the head safely hanging back over the padded edge of a treatment bench", backgrounds: [a physiotherapy clinic]}
+      - {scenario: "lying in a salon wash chair with shoulders supported and the complete head extending backward past the neck cradle over the visible basin edge", backgrounds: [a hair salon]}
+      - {scenario: "lying on a padded sports bench with shoulders supported and the head hanging backward beyond the bench edge while tracking a ball behind overhead", backgrounds: [an indoor sports facility, a training room]}
+      - {scenario: "lying on a firm outdoor observation bench with shoulders supported and the head hanging backward over its edge to see stars behind", backgrounds: [a dark garden, an observatory terrace]}
+    camera_low_20_60:
+      - {scenario: "standing above a phone camera placed securely near floor level", backgrounds: [a lived-in home interior, a workshop]}
+      - {scenario: "seen from the viewpoint of a seated small child looking up", backgrounds: [a public library, a family kitchen, a park path]}
+      - {scenario: "seen from a pet-height camera looking up at a standing adult", backgrounds: [a living room, a garden path]}
+      - {scenario: "standing at the top of a short stair while the camera remains below", backgrounds: [a public building stairwell, an outdoor stone stair]}
+    combined_pitch_30_60_yaw_30_90:
+      - {scenario: "watching a bird high above and far to one side", backgrounds: [a quiet park, a garden]}
+      - {scenario: "looking up toward a person speaking from an upper-side balcony", backgrounds: [a residential courtyard, a theater lobby]}
+      - {scenario: "studying a tall building corner high and to the side", backgrounds: [a city sidewalk, an office plaza]}
+      - {scenario: "following a presentation projected high on the side wall", backgrounds: [a lecture hall, a conference room]}
+    combined_pitch_60_90_yaw_30_60:
+      - {scenario: "reclined in a dentist chair and turning toward equipment above one shoulder", backgrounds: [a clinic treatment room]}
+      - {scenario: "lying on grass and turning toward a kite overhead to one side", backgrounds: [a quiet park, a garden lawn]}
+      - {scenario: "supported in a salon wash chair while looking toward a ceiling light to one side", backgrounds: [a hair salon]}
+  hair: [short straight hair, long straight hair falling backward naturally, curly hair, closely cropped hair, a bald head, tied-back hair]
+  clothing: [a casual cotton shirt, a knit sweater, a light jacket, office-casual clothing, practical outdoor clothing, a plain hoodie]
+  lens_feel: [a modern phone wide camera, a phone standard camera, a compact camera, a mildly compressed phone telephoto camera]
+  age_bands: [20s, 30s, 40s, 50s, 60s, 70s]
+  gender_presentations: [woman, man]
+  skin_tones: [Fitzpatrick I, Fitzpatrick II, Fitzpatrick III, Fitzpatrick IV, Fitzpatrick V, Fitzpatrick VI]
+  lighting:
+    - {name: neutral readable indoor or outdoor lighting, share: 45}
+    - {name: harsh sunlight with realistic but readable facial shadows, share: 20}
+    - {name: dim indoor-evening light with the face still readable, share: 15}
+    - {name: backlight against sky or ceiling lights with the face still clearly readable and no silhouette, share: 15}
+    - {name: mixed-color practical lighting with natural skin color, share: 5}
