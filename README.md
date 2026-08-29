@@ -15,8 +15,9 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 
 <p align="center"><sub>Left: teacher vitl-320 on nine looking-up × profile tiles with a roll of 0–320° composited onto each tile.<br>Right: student vitt-256 on measured pitch extremes (+86° to −89°) with roll. Predictions only.</sub></p>
 
+- Of the total inference time, 25 ms is spent on CUDA inference for DEIMv2-Wholebody49-S, while the remainder is spent on FaceAlignment inference.
 
-https://github.com/user-attachments/assets/b45838d4-b7c0-40e0-a7da-37222c5948d1
+  https://github.com/user-attachments/assets/144e485e-ec5c-460d-9cfb-58334accb92a
 
 ## 1. Results at a glance
 
