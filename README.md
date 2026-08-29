@@ -34,7 +34,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 - **Table 7 perturbations are applied in crop pixels** (mblur9/21 = 30° motion blur of 9/21 px, warm/cool = channel gains, gamma 0.6/1.6, gray, jpeg30 = JPEG quality 30). Their strength therefore depends on the input resolution: for vitt-096 a 21 px blur on a 96 px crop corresponds to ~56 px at 256, so its Table 7 row is not comparable with the 256 models.
 
 #### Table 1. NME (%, inter-ocular, lower is better)
-| Model | WFLW<br>Full | <br>Pose | <br>Expr. | <br>Illum. | <br>Makeup | <br>Occl. | <br>Blur | COFW<br>Full | 300W<br>Full | <br>Comm. | <br>Chal. |
+| Model | WFLW<br>Full | <br>Pose | <br>Exp | <br>Ill | <br>Mu | <br>Occ | <br>Blur | COFW<br>Full | 300W<br>Full | <br>Comm | <br>Chal |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | D-ViT (paper) | 3.75 | 6.43 | 3.85 | 4.06 | 3.57 | 4.47 | 4.37 | 4.13 | 2.85 | 2.43 | 4.56 |
 | vitl-320 | 1.51 | 2.54 | 1.55 | 1.47 | 1.42 | 1.56 | 1.58 | 1.21 | 1.03 | 0.96 | 1.34 |
@@ -43,7 +43,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-096 | 5.14 | 8.65 | 5.32 | 4.96 | 5.06 | 5.52 | 5.40 | 3.90 | 3.85 | 3.57 | 5.02 |
 
 #### Table 2. FR10 (%, lower is better) and AUC10 (%, higher is better) on WFLW
-| Model | FR10<br>Full | <br>Pose | <br>Exp. | <br>Ill. | <br>Mu. | <br>Occ. | <br>Blur | AUC10<br>Full | <br>Pose | <br>Exp. | <br>Ill. | <br>Mu. | <br>Occ. | <br>Blur |
+| Model | FR10<br>Full | <br>Pose | <br>Exp | <br>Ill | <br>Mu | <br>Occ | <br>Blur | AUC10<br>Full | <br>Pose | <br>Exp | <br>Ill | <br>Mu | <br>Occ | <br>Blur |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | D-ViT (paper) | 1.76 | 8.28 | 1.27 | 1.29 | 1.94 | 3.80 | 2.07 | 63.7 | 40.1 | 62.6 | 64.7 | 64.7 | 57.1 | 58.6 |
 | vitl-320 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 84.9 | 74.5 | 84.5 | 85.4 | 85.8 | 84.4 | 84.2 |
