@@ -16,14 +16,14 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 
 Excerpt from [history/050](history/050_results_tables.md) (inter-ocular NME %, lower is better; CPU latency on an i9-10900K with onnxruntime 1.22 CPU EP, batch 1).
 
-| Model | Input | Params | GMACs | CPU ms | WFLW Full | WFLW Pose | 300W Full | COFW | 300wlp_val (unleaked, head-NME) |
-|---|---|---|---|---|---|---|---|---|---|
-| vitl-320 (teacher) | 320 | 308.2M | 131.3 | 520 | 1.51 | 2.54 | 1.03 | 1.21 | 0.0033 |
-| vitt-256 | 256 | 9.0M | 2.05 | 12.4 | 3.36 | 5.64 | 2.66 | 2.76 | 0.0071 |
-| hg0-256 | 256 | 1.63M | 0.70 | 5.2 | 5.32 | 9.53 | 3.87 | 3.77 | 0.0158 |
-| vitt-096 | 96 | 9.0M | 0.43 | 4.6 | 5.14 | 8.65 | 3.86 | 3.90 | 0.0100 |
+| Model | Input | Params | GMACs | GFLOPs | CPU ms | WFLW Full | WFLW Pose | 300W Full | COFW |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
+| vitl-320 (teacher) | 320 | 308.2M | 131.3 | 262.6 | 520 | 1.51 | 2.54 | 1.03 | 1.21 |
+| vitt-256 | 256 | 9.0M | 2.05 | 4.09 | 12.4 | 3.36 | 5.64 | 2.66 | 2.76 |
+| hg0-256 | 256 | 1.63M | 0.70 | 1.40 | 5.2 | 5.32 | 9.53 | 3.87 | 3.77 |
+| vitt-096 | 96 | 9.0M | 0.43 | 0.85 | 4.6 | 5.14 | 8.65 | 3.86 | 3.90 |
 
-**How to read these numbers (important):** all splits of the real-image datasets — including WFLW test, 300W and COFW test — are used for training. The "official" numbers above therefore measure how well the models fit the training distribution and **must not be compared with published benchmark results**. The only unleaked instrument is `300wlp_val`, derived from 300W-LP. The full tables — WFLW subsets, FR/AUC, breakdowns by pose (yaw / pitch / roll) and by image degradation, and the D-ViT paper values listed side by side with an explicit non-comparability note — follow in §1.1 (same content as 050 §2).
+**How to read these numbers (important):** all splits of the real-image datasets — including WFLW test, 300W and COFW test — are used for training. The "official" numbers above therefore measure how well the models fit the training distribution and **must not be compared with published benchmark results**. The only unleaked instrument is `300wlp_val` (head-NME on a held-out 300W-LP subset; values in 050). The full tables — WFLW subsets, FR/AUC, breakdowns by pose (yaw / pitch / roll) and by image degradation, and the D-ViT paper values listed side by side with an explicit non-comparability note — follow in §1.1 (same content as 050 §2).
 
 ### 1.1 Full tables
 
