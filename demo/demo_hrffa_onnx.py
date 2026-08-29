@@ -275,9 +275,16 @@ def draw_results(image: np.ndarray, results: Sequence[HeadResult], draw_bbox: bo
     return out
 
 
-def put_text_outlined(image: np.ndarray, text: str, org: tuple[int, int]) -> None:
-    cv2.putText(image, text, org, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
-    cv2.putText(image, text, org, cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 1, cv2.LINE_AA)
+def put_text(image: np.ndarray, text: str, org: tuple[int, int], scale: float = 0.7, thickness: int = 2) -> None:
+    """黒帯の上に白文字を 1 回だけ描く。
+
+    「太い白文字の上に細い赤文字を重ねて縁取りにする」方式は OpenCV 5 の文字描画では線の太さで
+    文字送りが変わる(同じ文字列でも幅が 138 px と 146 px になる)ため 2 つの文字列がずれて見える。
+    """
+    x, y = org
+    (tw, th), base = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, thickness)
+    cv2.rectangle(image, (x - 4, y - th - 4), (x + tw + 4, y + base + 2), (0, 0, 0), -1)
+    cv2.putText(image, text, org, cv2.FONT_HERSHEY_SIMPLEX, scale, (255, 255, 255), thickness, cv2.LINE_AA)
 
 
 def results_to_records(results: Sequence[HeadResult]) -> list[dict]:
@@ -376,9 +383,9 @@ def process_video(pipeline: Pipeline, video: str, output_dir: Path, save_raw: bo
                 break
             frame_index += 1
             rendered, results, infer_ms, total_ms = pipeline.run(frame)
-            put_text_outlined(rendered, f"infer: {infer_ms:.2f} ms", (10, 30))
-            put_text_outlined(rendered, f"total: {total_ms:.2f} ms", (10, 58))
-            put_text_outlined(rendered, f"heads: {len(results)}", (10, 86))
+            put_text(rendered, f"infer: {infer_ms:.2f} ms", (10, 30))
+            put_text(rendered, f"total: {total_ms:.2f} ms", (10, 58))
+            put_text(rendered, f"heads: {len(results)}", (10, 86))
             if writer is None and not disable_video_writer:
                 writer = create_video_writer(output_dir, rendered.shape[1], rendered.shape[0], cap.get(cv2.CAP_PROP_FPS))
             if writer is not None:
