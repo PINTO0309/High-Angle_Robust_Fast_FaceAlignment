@@ -2,6 +2,7 @@
 
 A training, distillation and ONNX deployment pipeline for **whole-head face alignment that stays robust at extreme head poses while remaining light enough for CPU inference**.
 
+- **Face alignment on head crops, not face crops.** Conventional face-alignment papers assume a tightly cropped face region; this is a special-purpose model that works on a crop of the whole head instead. The architecture is therefore at a considerable disadvantage against paper benchmarks, but the intent is to take in more features by processing the entire head and the background context contained in a small margin at the same time. It is also the practical choice: object detectors localize whole heads far more stably than faces.
 - For head crops that include looking up / looking down (measured pitch beyond ±85°), in-plane rotation over the **full 360° roll**, and profile views (yaw ±90°), the models output 68 / 98 / 29 landmarks plus a 3-class visibility label per point (outside the image / occluded / visible).
 - The teacher is a DINOv3 ViT-L/16 (320×320); the students are a ViT-T/16 (256 and 96 input) and a PP-HGNetV2-B0 based CNN (256). Students are trained by online distillation from the teacher and exported to ONNX graphs that run in 5–12 ms on a CPU.
 
