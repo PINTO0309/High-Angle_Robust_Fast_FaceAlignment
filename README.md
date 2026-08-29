@@ -305,10 +305,13 @@ ckpts/ data/ datasets/ runs/ onnx/   weights, raw data, unified data and trainin
 
 ```bibtex
 @software{hyodo2026hrffa,
-  author = {Katsuya Hyodo},
-  title  = {{HRFFA}: High-Angle Robust Fast FaceAlignment},
-  year   = {2026},
-  url    = {https://github.com/PINTO0309/High-Angle_Robust_Fast_FaceAlignment}
+  author    = {Katsuya Hyodo},
+  title     = {HRFFA: High-Angle Robust Fast FaceAlignment},
+  month     = {aug},
+  year      = {2026},
+  publisher = {Zenodo},
+  doi       = {10.5281/zenodo.22161811},
+  url       = {https://doi.org/10.5281/zenodo.22161811},
 }
 ```
 
