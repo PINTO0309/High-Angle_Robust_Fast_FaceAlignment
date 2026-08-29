@@ -1,0 +1,5 @@
+# B: 姿勢監督なし(coord + vis のみ。勾配経路は train 側で完全遮断)
+_base_: abl_pose_base
+w_rot: 0.0
+w_roll: 0.0
+w_yaw_weak: 0.0

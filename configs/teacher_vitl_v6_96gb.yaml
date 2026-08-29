@@ -1,0 +1,24 @@
+# 教師 v6: v5.1 + selftrain_v3 世代の擬似ラベル(history/025)
+#   - selftrain_v1/v2 は v5.1 教師で再付与(Flip 修正済み教師によるラベル品質向上)
+#   - selftrain_lookup(見上げ特化生成 3,000 枚由来)を新規追加
+#   - 擬似ラベル総重み 0.25(w25 で確認した最適域)は維持し、内訳を再配分
+#   - 効果測定: pose-stress の pitch 45..95 ビン(v5.1 基準 6.54、history/024 §5)
+_base_: abl_v51_ft_base
+# 15ep では未収束(e12 まで val_mean 単調減少・実写側も下げ止まりなし)のため
+# 0 epoch から学習し直す(2026-08-23 に 30ep → 2026-08-24 に 90ep へ変更)。
+# init はユーザー決定により 15ep run の best(旧 run フォルダはリネーム退避して
+# おくこと — glob は runs/*/ 配下を拾う)
+epochs: 90
+init_from: "runs/*/teacher_vitl_v6_96gb_best_*.pt"
+# 10 epoch ごとに EMA スナップショット(best と同形式、90ep で 9 本 ≈ 11GB。
+# val_mean best と実写プロキシ最良点が乖離した場合の評価用)
+snapshot_every_epochs: 10
+sources:
+  - {name: 300wlp, weight: 0.42}
+  - {name: synth_dwarp, weight: 0.11}
+  - {name: wflw, weight: 0.14}
+  - {name: selftrain_v1, weight: 0.12}
+  - {name: selftrain_v2, weight: 0.06}
+  - {name: selftrain_lookup, weight: 0.07}
+  - {name: 300w, weight: 0.05}
+  - {name: cofw, weight: 0.03}

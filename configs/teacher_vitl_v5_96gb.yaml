@@ -1,0 +1,6 @@
+# 教師 v5: v4 と同一レシピで、300W-LP Flip の左右番号入替修正(history/020)後の
+# データにより再学習する。レシピ変更なし・データ修正のみが差分。
+#   - 前提: 実行マシンの datasets/unified に fix_flip_index 適用済みであること
+#     (uv run python -m hrffa.dataset.fix_flip_index で冪等に適用可能)
+#   - init は v4 best(旧規約で学習済みだが FT で再整合させる)
+_base_: abl_v4_ft_base

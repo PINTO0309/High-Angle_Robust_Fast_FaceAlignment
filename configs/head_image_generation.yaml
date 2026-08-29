@@ -1,0 +1,132 @@
+version: 1
+
+api:
+  model: gpt-image-2
+  endpoint: /v1/images/generations
+  completion_window: 24h
+  quality: low
+  output_format: png
+  background: opaque
+  n: 1
+  allowed_sizes: [1024x1024, 1024x1536, 1536x1024]
+
+storage:
+  format: jpeg
+  quality: 92
+
+auto_correction:
+  enabled_stages: [pilot, production]
+  max_quality_retries: 2
+  detector_score_threshold: 0.25
+  head_height_ratio: {min: 0.25, max: 0.50}
+  head_height_prompt_target: {min: 0.30, max: 0.42}
+  margin_min_head_ratio: 0.50
+  require_single_head: true
+  require_body_detection: true
+  reject_back: true
+  reject_duplicates: true
+
+pseudo_label:
+  teacher_tta_max_std_norm: 0.03
+
+stages:
+  validation: {count: 10, shard_size: 10}
+  pilot:
+    count: 500
+    shard_size: 500
+    bin_counts: [75, 50, 75, 50, 75, 50, 75, 50]
+  production:
+    count: 5000
+    shard_size: 500
+    bin_counts: [750, 500, 750, 500, 750, 500, 750, 500]
+
+bins:
+  - id: pitch_up_mid
+    label: Pitch +45..+90
+    pitch: {mode: fixed_sign, sign: 1, min: 45, max: 90}
+    yaw: {mode: signed_abs, min: 5, max: 22}
+    cam: {mode: fixed, value: 0}
+    anchor: "Head tilted far back; chin, nostrils, and exposed throat are prominent while the eyes gaze at the ceiling or sky. Use a medium-close composition with head height near 38% of the image, not a distant full-body view."
+  - id: pitch_up_extreme
+    label: Pitch +90..+120
+    pitch: {mode: fixed_sign, sign: 1, min: 90, max: 120}
+    yaw: {mode: signed_abs, min: 5, max: 18}
+    cam: {mode: fixed, value: 0}
+    anchor: "Head and torso are fully reclined or lying down, face plane nearly horizontal and slightly beyond; the underside of the jaw dominates. Use a medium-close composition with head height near 38% of the image, not a distant full-body view."
+  - id: pitch_down_mid
+    label: Pitch -45..-90
+    pitch: {mode: fixed_sign, sign: -1, min: 45, max: 90}
+    yaw: {mode: signed_abs, min: 5, max: 22}
+    cam: {mode: fixed, value: 0}
+    anchor: "Deep downward bow toward an object below waist level; forehead and hair dominate and the eyes are barely visible. Center the complete head with clear empty space above the crown and below the chin."
+  - id: pitch_down_extreme
+    label: Pitch -90..-120
+    pitch: {mode: fixed_sign, sign: -1, min: 90, max: 120}
+    yaw: {mode: signed_abs, min: 5, max: 18}
+    cam: {mode: fixed, value: 0}
+    anchor: "Crown and hair whorl point toward the camera while the face remains only partly visible below, as the person searches directly beneath furniture. Center the complete head with clear empty space above the crown and below the chin."
+  - id: camera_high
+    label: Camera high +30..+70
+    pitch: {mode: fixed_sign, sign: -1, min: 2, max: 30}
+    yaw: {mode: signed_abs, min: 4, max: 25}
+    cam: {mode: fixed_sign, sign: 1, min: 30, max: 70}
+    anchor: "Ceiling-corner CCTV viewpoint looking down at the crown and clearly visible shoulders; the face remains partly visible."
+  - id: camera_low
+    label: Camera low -20..-45
+    pitch: {mode: fixed_sign, sign: 1, min: 2, max: 30}
+    yaw: {mode: signed_abs, min: 4, max: 25}
+    cam: {mode: fixed_sign, sign: -1, min: 20, max: 45}
+    anchor: "Worm's-eye camera around waist or floor height; underside of chin and nostrils visible while the head stays upright in the image plane. Use a medium-close composition with head height near 38% of the image, not a distant full-body view."
+  - id: combined_pitch_yaw
+    label: Combined pitch 30..60 and yaw 30..90
+    pitch: {mode: signed_abs, min: 30, max: 60}
+    yaw: {mode: signed_abs, min: 30, max: 90}
+    cam: {mode: fixed, value: 0}
+    anchor: "A stable three-quarter or profile view looking distinctly up-and-away or down-and-away, with both pitch and yaw unmistakably strong."
+  - id: yaw_extreme
+    label: Yaw 60..100 and pitch 0..30
+    pitch: {mode: signed_abs, min: 0, max: 30}
+    yaw: {mode: signed_abs, min: 60, max: 100}
+    cam: {mode: fixed, value: 0}
+    anchor: "Strong profile to slightly-past-profile with the far-side eye hidden and ear and jawline prominent, but never a pure back-of-head view."
+
+prompt:
+  preamble: "Create one photorealistic, unedited-looking photograph of one fictional adult. The person must not resemble a real public or private individual."
+  framing: "Show the entire head, hair, skull, chin, neck, and part of both shoulders. Target a head height of 30% to 42% of image height, with 25% to 50% as a hard limit. Choose camera distance solely to satisfy those numeric framing constraints; do not default to either a face close-up or a distant full-body shot. Leave clear empty margin on every side equal to at least half the head size; never crop the head."
+  pose: "Intended head-relative-to-camera angles are pitch {pitch:+d} degrees, yaw {yaw:+d} degrees, camera elevation {cam:+d} degrees, and roll 0 degrees. Keep roll visually near zero and preserve some facial evidence; no pure back-of-head."
+  body_integrity: "The neck, shoulders, torso, limbs, clothing, and support surfaces must be anatomically continuous and physically coherent. Either show the visible body normally or occlude it naturally behind a clearly visible piece of furniture, fixture, vehicle interior, or frame edge. Never let the torso or limbs fade, dissolve, terminate without an occluder, or merge into the floor, wall, furniture, or background."
+  realism: "Use a natural real-world background and plausible body posture, phone-camera or surveillance-camera optics, realistic skin and hair texture, and anatomically plausible neck articulation. No illustration, anime, CGI, beauty filter, text, watermark, border, collage, or visible AI artifact."
+  backgrounds: [a lived-in home office, a public library aisle, a city sidewalk, a quiet park path, the interior of a parked vehicle, a grocery store aisle, a clinic waiting room, a kitchen, a train platform, a workshop]
+  postures:
+    pitch_up_mid: [looking at a ceiling fixture, leaning back to inspect a high shelf, watching a bird overhead]
+    pitch_up_extreme: [reclined against a chair headrest, lying on a sofa while looking beyond the ceiling, leaning fully back against a padded bench]
+    pitch_down_mid: [checking an item held near the waist, reading a book on a low table, looking at shoes while standing]
+    pitch_down_extreme: [leaning over to search beneath a desk, bending to inspect the floor directly below, looking under a low shelf]
+    camera_high: [walking beneath a ceiling security camera, standing below a ceiling corner camera, sitting beneath an overhead camera]
+    camera_low: [standing above a phone placed near floor level, viewed from a low stair, viewed from waist-height security equipment]
+    combined_pitch_yaw: [looking toward an object high and to the side, looking toward an object low and to the side, turning away while keeping the face partly visible]
+    yaw_extreme: [watching traffic to the side, checking a doorway behind one shoulder, speaking to someone just outside the frame]
+  hair: [short straight hair, long straight hair, curly hair, closely cropped hair, a bald head, tied-back hair]
+  clothing: [a casual cotton shirt, a knit sweater, a light jacket, office-casual clothing, practical outdoor clothing, a plain hoodie]
+  lens_feel: [a modern phone wide camera, a phone standard camera, a ceiling CCTV camera, a compact camera, a mildly compressed telephoto phone camera]
+  age_bands: [20s, 30s, 40s, 50s, 60s, 70s]
+  gender_presentations: [woman, man]
+  skin_tones: [Fitzpatrick I, Fitzpatrick II, Fitzpatrick III, Fitzpatrick IV, Fitzpatrick V, Fitzpatrick VI]
+  lighting:
+    - {name: neutral natural lighting, share: 50}
+    - {name: harsh sunlight with readable facial shadows, share: 20}
+    - {name: dim low light with the face still readable, share: 15}
+    - {name: backlight with the face still readable, share: 10}
+    - {name: mixed-color practical lighting, share: 5}
+
+validation:
+  - {bin: pitch_down_extreme, pitch: -108, yaw: 10, cam: 0, size: 1024x1536, context: "leaning over to search beneath a desk"}
+  - {bin: pitch_down_extreme, pitch: -98, yaw: -12, cam: 0, size: 1024x1024, context: "bending to inspect the floor directly below"}
+  - {bin: pitch_up_extreme, pitch: 108, yaw: 8, cam: 0, size: 1536x1024, context: "fully reclined against a chair headrest"}
+  - {bin: pitch_up_extreme, pitch: 98, yaw: -10, cam: 0, size: 1024x1536, context: "lying naturally on a sofa while looking beyond the ceiling"}
+  - {bin: pitch_up_mid, pitch: 68, yaw: 12, cam: 0, size: 1024x1536, context: "leaning back to inspect a high shelf"}
+  - {bin: pitch_down_mid, pitch: -68, yaw: -15, cam: 0, size: 1024x1024, context: "a long-haired adult checking an item near the waist", hair: "long hair"}
+  - {bin: camera_high, pitch: -18, yaw: 12, cam: 50, size: 1536x1024, context: "walking beneath a ceiling-corner CCTV camera"}
+  - {bin: camera_low, pitch: 18, yaw: -10, cam: -32, size: 1024x1536, context: "standing above a phone camera placed near floor level"}
+  - {bin: combined_pitch_yaw, pitch: -48, yaw: 68, cam: 0, size: 1024x1024, context: "looking down and away toward an object beside a low table"}
+  - {bin: pitch_up_mid, pitch: 58, yaw: -25, cam: 0, size: 1024x1536, context: "looking up while waiting in a clinic", accessory: "a correctly worn medical mask"}

@@ -1,0 +1,17 @@
+# 学生 S @96x96(history/048 §3、2026-08-29): r2 e449(256 で学習済み)を初期値に、入力 96x96 へ適応させる
+# 「低解像度・低レイテンシ版」(CPU 4.0 ms vs 256 の 12.7 ms、i9-10900K ORT)。
+#   - 教師 320 → 学生 96 は学習ローダの AA 付き bilinear 縮小(3.33x)。クロップ幾何・拡張・KD は A1/r2 と同一
+#   - 重みは解像度非依存(patch conv 16x16 / RoPE / デコーダ)なので r2 best をそのまま load(missing=0)。
+#     ただしデコーダの memory 位置符号は絶対座標のため 6x6 格子では再学習が必要(ゼロショットでは崩壊)→ 序盤の
+#     一時悪化は想定内。判定は 044 §4 の窓平均ルール
+#   - 期待精度は 256 より大きく劣る見込み(1 px = 3.4% NME、目安 WFLW 6〜9%)。CNN 学生(256、5〜6 ms)との比較で判断
+#   - デプロイ時に 96 へ直接描画する場合は縮小率が大きいので INTER_AREA 推奨(043 §6.1 のプローブを 96 で取り直す)
+# 実行(96GB): uv run python -m hrffa.train.distill_student --preset student_s096_96gb_r2
+_base_: student_s256_96gb
+out_size: 96
+init_from: "runs/student_s256_96gb_r2/student_s256_96gb_r2_best_*.pt"
+# fine-tune なので 一定 100 + decay 50 から開始。頭打ちが出なければ epochs を書き換えて --resume で延長
+# 2026-08-29 e95 判定(048 §3): 一定区間がなお −3%/20ep で降下中(頭打ち基準未達)のため 150 → 250(一定 200 + decay 50)に延長。
+# 頭打ちが出たら epochs = 現 epoch + 50 に書き換えて --resume(即 decay)
+epochs: 250
+decay_epochs: 50

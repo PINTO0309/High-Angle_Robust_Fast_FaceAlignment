@@ -1,0 +1,8 @@
+# D8: POPoS 型サブトークンデコード(history/001 §、045 §3 Tier 3)。クエリ × memory の双線形形式で
+# 距離マップ(セル単位)を予測し、top-6 アンカーの multilateration(閉形式最小二乗)で座標を復元。
+# 損失: 距離マップ(GT から 6 セル以内は L1、外側は hinge)× w_dist + 従来の座標損失(復元座標)+ KD
+_base_: student_s256_96gb
+head: popos
+popos_topk: 6
+w_dist: 1.0
+popos_radius: 6.0

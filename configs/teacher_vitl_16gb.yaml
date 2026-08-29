@@ -1,0 +1,7 @@
+# 本学習(16GB): ViT-L のまま batch を落とし grad_accum で実効 192 を維持
+batch_size: 24
+grad_accum: 8
+# 姿勢監督は恒久除外(history/012 §6・014)
+w_rot: 0.0
+w_roll: 0.0
+w_yaw_weak: 0.0

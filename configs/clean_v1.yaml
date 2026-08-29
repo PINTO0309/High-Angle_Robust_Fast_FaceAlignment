@@ -1,0 +1,31 @@
+# clean_v1(history/039 §5-§7): 「もっともクリーンなデータ」方針(2026-08-26 ユーザー決定)。
+#   - 300wlp は |yaw|≤10 のみ(synth_dwarp はソースから除外)(投影ラベルのずれは 0° から線形に増え、
+#     10° 超はバイアス主体。剛体補正は輪郭を直せないので採らない)。300wlp_val も同条件
+#   - train_all_splits: false — 実写のテスト split は学習に入れない(計器として維持)
+#   - motion_blur_prob: 0.25(038)。実写 GT・生成プール・v1 は従来どおり
+#   - 60° 規約境界の問題は学習データから消滅(変換済みレコードは全て除外側)
+# init = r3 best(テスト split 未投入の重み)、0 epoch から。r3_all の best は
+# テスト split を学習済みのため、計器を汚さない目的で init に使わない
+_base_: abl_v8_datafix_r3
+# r3 best からのファインチューン(新規約の学習なし)+ データ 31k(反復 3.7 回/epoch)のため 90 → 60
+epochs: 60
+# N=31,290 / batch 96 → 1 周 ≈ 326 step。1,200 のままだと 60ep で ~221 周(r3 の 5 倍超の反復)
+# のため 400 step/epoch(≈1.2 周、総量 24k バッチ ≈ 74 周)に変更。LR 曲線は総 step に正規化
+steps_per_epoch: 400
+init_from: "runs/*/abl_v8_datafix_r3_best_*.pt"
+train_all_splits: false
+motion_blur_prob: 0.25
+source_yaw_max:
+  300wlp: 10
+# 除外ソース: synth_dwarp(|yaw|≤10 で 64 件、300wlp 派生の投影ずれを継承)、
+#   selftrain_v1(旧教師の擬似ラベル = ほぼノイズとの判断、2026-08-26 ユーザー決定)
+# ソース重みは学習レコード数に比例(「データのバランスに合わせる」):
+#   N = 31,290(300wlp 11,587 / wflw 7,500 / v2 4,864 / lookup 2,846 / 300w 3,148 / cofw 1,345)
+#   → 全レコードが 1 epoch(115k サンプル)に約 3.7 回ずつ均等に現れる
+sources:
+  - {name: 300wlp, weight: 0.37}
+  - {name: wflw, weight: 0.24}
+  - {name: selftrain_v2, weight: 0.16}
+  - {name: selftrain_lookup, weight: 0.09}
+  - {name: 300w, weight: 0.10}
+  - {name: cofw, weight: 0.04}

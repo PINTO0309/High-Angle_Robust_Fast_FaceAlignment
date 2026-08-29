@@ -1,0 +1,13 @@
+# v8 候補: データ修正 3 式の効果測定 FT(history/033・034)
+#   - part_anchor 補正: 目位置(lookup 全域 + gen5k |pitch|≥45)+ 口可視性(全プール)
+#   - fix_yaw_semantics: 300wlp yaw>+60 の 42,185 件の目・眉を空間順序規約へ統一
+# レシピ・クロップ(pad 0.05)・エンベロープは abl_v7_pad005 と同一で、
+# 差分は「修正済みデータ」と init のみ — pad005 best からの FT で修正の寄与を分離する
+# 前提: 実行マシンの datasets/unified に修正済み jsonl 4 本
+#   (300wlp / selftrain_v1 / selftrain_v2 / selftrain_lookup)が同期済みであること
+# 判定: 4 点セット。注目は pose-stress |yaw|60-95(規約統一の効果)と
+#   pitch45..95(目バイアス補正の効果)。90ep(2026-08-25 ユーザー指定 —
+#   昇格候補として本学習級で回す)
+_base_: abl_v7_pad005
+epochs: 90
+init_from: "runs/*/abl_v7_pad005_best_*.pt"

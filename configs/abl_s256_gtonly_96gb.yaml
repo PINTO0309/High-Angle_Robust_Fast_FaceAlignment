@@ -1,0 +1,5 @@
+# A0: KD 全オフ(GT のみ)— 蒸留寄与の分離基準(history/026 §3)
+_base_: student_s_base
+w_kd_coord: 0.0
+w_kd_vis: 0.0
+w_kd_tok: 0.0

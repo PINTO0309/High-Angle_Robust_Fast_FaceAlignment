@@ -1,0 +1,10 @@
+# E: synth_dwarp プールを 2k → 10k に拡大(重み同一 0.13 = 純粋な多様性効果の検証)
+# 前提: depth_warp_gen --n 10000 --seed 0 --out-name synth_dwarp10k を実行済みであること
+_base_: abl_v3_ft_base
+sources:
+  - {name: 300wlp, weight: 0.50}
+  - {name: synth_dwarp10k, weight: 0.13}
+  - {name: wflw, weight: 0.15}
+  - {name: selftrain_v1, weight: 0.13}
+  - {name: 300w, weight: 0.05}
+  - {name: cofw, weight: 0.04}

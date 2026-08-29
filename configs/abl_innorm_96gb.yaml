@@ -1,0 +1,4 @@
+# F: patch embed 直後の token 軸 InstanceNorm(PersonViT 由来のスタイル頑健化トリック)
+# 仮説: 合成/実写/生成のドメイン間スタイル差を除去し、合成→実写の転移を改善する
+_base_: abl_v3_ft_base
+patch_instance_norm: true

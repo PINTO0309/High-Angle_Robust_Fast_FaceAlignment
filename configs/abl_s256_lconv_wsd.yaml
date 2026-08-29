@@ -1,0 +1,4 @@
+# D7: 学生ブロックに zero-init の局所畳み込み分岐(3×3 depthwise + 1×1、注意と並列)を追加
+# (history/045 §3 Tier 3、LESA 由来)。1×1 zero-init・ゲート 1 初期化のため事前学習重みの挙動は追加直後に不変
+_base_: student_s256_96gb
+local_conv: true

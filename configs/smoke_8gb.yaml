@@ -1,0 +1,9 @@
+# 開発 PC(8GB)の動作確認専用。本学習・重い学習テストには使わない
+backbone: vits16
+batch_size: 4
+grad_accum: 1
+steps_per_epoch: 60
+epochs: 1
+num_workers: 4
+warmup_steps: 20
+log_every: 10

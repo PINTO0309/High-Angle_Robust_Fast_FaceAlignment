@@ -1,0 +1,2 @@
+# A: 姿勢監督あり(現行フル損失)
+_base_: abl_pose_base

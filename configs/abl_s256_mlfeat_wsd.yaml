@@ -1,0 +1,5 @@
+# D5: 多層特徴の融合(history/045 §3 Tier 2)。ViT-T のブロック 6/9/12(添字 5/8/11)の出力をチャネル結合
+# (192×3 = 576)して input_proj へ。仮説: 最終層は意味寄りで局在精度を落としている。
+# 最終層以外には新設 LayerNorm。追加パラメータは input_proj / cls_proj の入力次元分のみ
+_base_: student_s256_96gb
+feat_layers: [5, 8, 11]

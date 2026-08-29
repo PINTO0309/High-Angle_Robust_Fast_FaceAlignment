@@ -1,0 +1,3 @@
+# A: random erasing(遮蔽拡張)。狙い: WFLW occlusion 6.61 の改善(history/010 の保留策)
+_base_: abl_v3_ft_base
+erase_prob: 0.5

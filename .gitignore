@@ -157,6 +157,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# OpenAI image-generation runtime artifacts (plans, API results, generated images)
+data/imagegen/
+tmp/imagegen/
+
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -195,9 +199,9 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #   that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#   and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#   and can be added to the global gitignore or merged into this file. However, if you prefer,
 #   you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 # Temporary file for partial code execution
@@ -216,3 +220,39 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+*.pdf
+*.zip
+*.tar.gz
+*.jpg
+*.png
+*.onnx
+*.engine
+*.profile
+*.pth
+*.pt
+ckpts/MANIFEST.json
+data/D-ViT
+data/ORFormer
+data/300W_LP_w_masked
+docs/AccurateFacialLandmarkDetection
+docs/ORFormer
+docs/TUFA
+docs/POPoS
+docs/STAR
+docs/SPIGA
+docs/fan_training
+docs/BiternionNet
+docs/488_DEIMv2-Wholebody49
+# derived unified dataset
+datasets/
+
+# keep history assets (report figures)
+!history/assets/**
+
+# training runs (logs / checkpoints)
+runs/
+
+# synthetic image-generation provenance (kept locally, not tracked)
+data/synthetic/
+data/synthetic_lookup/

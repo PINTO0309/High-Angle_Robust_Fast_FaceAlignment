@@ -1,0 +1,5 @@
+# A1: 学生 S @256 フル KD(coord+vis+tok)= Phase A の確定構成(history/026 §3、043 §8)。
+# 2026-08-28 以降は教師 clean_v3 + WSD(250 epoch 上限、student_s_base)で、そのままデプロイ候補かつ
+# 045 派生アブレーションの基準(旧 student_s256_wsd は本プリセットと同一になったため廃止)。
+# 旧 A1(教師 clean_v2、cosine 100ep)の結果は 043。旧 run dir は runs/student_s256_96gb_cos100 に退避して使う
+_base_: student_s_base

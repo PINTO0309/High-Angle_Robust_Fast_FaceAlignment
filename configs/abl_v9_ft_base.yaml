@@ -1,0 +1,9 @@
+# abl 通番 v9: baseline v7(= clean_v1 e58、history/041、2026-08-27 承認)起点のファインチューニング標準ベース。
+# (abl_v7_* は pad アブレーション、abl_v8_* は datafix 系のため、次番の v9 を使う。
+#  「baseline vN」と「abl_vN」は別の通番)
+# レシピ・データ方針は clean_v1 と同一(300wlp ≤10°、v1/synth_dwarp 除外、6 ソース件数比例、
+# テスト split 不使用、mblur 0.25、400 step/epoch)で init のみ v7 best。
+# 検証学習は 30ep(12k バッチ ≈ 33 周)+ 10ep スナップショットを既定とする
+_base_: clean_v1
+epochs: 30
+init_from: "runs/*/clean_v1_best_*.pt"

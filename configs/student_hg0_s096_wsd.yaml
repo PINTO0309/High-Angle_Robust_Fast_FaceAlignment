@@ -1,0 +1,13 @@
+# CNN 学生 @96x96(history/048 §4、2026-08-29): student_hg0_wsd(256、e386 best)を初期値に入力 96x96 へ適応させる
+# 低解像度・低レイテンシ版。ViT-T の student_s096_96gb_r2 と同じ位置づけ(同じ 96 で CNN と ViT-T を比較する)。
+#   - 教師 320 → 学生 96 は学習ローダの AA 付き bilinear 縮小(3.33x)。クロップ幾何・拡張・KD は 256 版と同一
+#   - HGNet は全畳み込みなので重みは解像度非依存(96/32 = 3 で stage 3 まで整数)。メモリ格子は stride 8 で 12x12(256 版 32x32)。
+#     デコーダの memory 位置符号は絶対座標なので 12x12 では再学習が必要 → 序盤の一時悪化は想定内。判定は 044 §4
+#   - ONNX は CNN のため解像度固定(export の --size 既定 = 96)
+# 実行(96GB): uv run python -m hrffa.train.distill_student --preset student_hg0_s096_wsd
+_base_: student_hg0_wsd
+out_size: 96
+init_from: "runs/student_hg0_wsd/student_hg0_wsd_best_*.pt"
+# fine-tune なので 一定 100 + decay 50 から開始。頭打ちが出なければ epochs を書き換えて --resume で延長
+epochs: 150
+decay_epochs: 50
