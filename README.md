@@ -10,7 +10,7 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
   <img src="history/assets/050/student_vitt256_pitch_extremes_roll_3x3.jpg" width="38%" alt="student vitt-256: measured pitch extremes with roll">
 </p>
 
-<p align="left"><sub>Left: teacher vitl-320 on nine looking-up × profile tiles with a roll of 0–320° composited onto each tile.<br>Right: student vitt-256 on measured pitch extremes (+86° to −89°) with roll. Predictions only.</sub></p>
+<p align="center"><sub>Left: teacher vitl-320 on nine looking-up × profile tiles with a roll of 0–320° composited onto each tile.<br>Right: student vitt-256 on measured pitch extremes (+86° to −89°) with roll. Predictions only.</sub></p>
 
 ## 1. Results at a glance
 
