@@ -6,8 +6,8 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 - The teacher is a DINOv3 ViT-L/16 (320×320); the students are a ViT-T/16 (256 and 96 input) and a PP-HGNetV2-B0 based CNN (256). Students are trained by online distillation from the teacher and exported to ONNX graphs that run in 5–12 ms on a CPU.
 
 <p align="center">
-  <img src="history/assets/050/teacher_clean_v3_lookup_yawpitchroll_3x3.jpg" width="43%" alt="teacher clean_v3: extreme pitch/yaw tiles with roll 0..320 deg">
-  <img src="history/assets/050/student_vitt256_pitch_extremes_roll_3x3.jpg" width="43%" alt="student vitt-256: measured pitch extremes with roll">
+  <img src="history/assets/050/teacher_clean_v3_lookup_yawpitchroll_3x3.jpg" width="45%" alt="teacher clean_v3: extreme pitch/yaw tiles with roll 0..320 deg">
+  <img src="history/assets/050/student_vitt256_pitch_extremes_roll_3x3.jpg" width="45%" alt="student vitt-256: measured pitch extremes with roll">
 </p>
 
 <p align="center"><sub>Left: teacher vitl-320 on nine looking-up × profile tiles with a roll of 0–320° composited onto each tile.<br>Right: student vitt-256 on measured pitch extremes (+86° to −89°) with roll. Predictions only.</sub></p>
@@ -28,7 +28,7 @@ Excerpt from [history/050](history/050_results_tables.md) (inter-ocular NME %, l
 
 ### 1.1 Full tables
 
-All tables below are generated from `runs/<run>/eval_best_{official,stratreal,stress,style}.log` by `scripts/make_results_tables.py` and mirror [history/050 §2](history/050_results_tables.md). Notes:
+All tables below are generated from `runs/<run>/eval_best_{official,stratreal,stress,style}.log` by `scripts/make_results_tables.py`. Notes:
 
 - **Absolute values are fit measures** (all real-image splits are in the training data). The `D-ViT (paper)` rows in Tables 1 / 2 are the published test-benchmark values of arXiv 2411.07167 (p.6, "Ours") and are listed for format reference only — the conditions differ, so no ranking is implied.
 - **Yaw / pitch / roll**: the models do not output head pose, so pose robustness is expressed as landmark accuracy per pose. Table 3: inter-ocular NME per effective pose bin (6DRepNet-estimated pose plus the applied rotation, 3 sets × 300 images × 16 configurations). Table 4: NME per in-plane roll (exact 360° roll equivariance; a small worst−base means equivariant). Table 5: NME under projective camera pitch ±15/±25° and yaw ±15° perturbations. Table 6: head-NME (normalized by the crop side, not inter-ocular) of the three real sets stratified by 6DRepNet-estimated pose.
@@ -230,7 +230,8 @@ uv run python -m hrffa.train.evaluate \
 --style-shift \
 --style-n 300
 
-# ONNX (fixed batch-1 graph + N-batch variant; parity and N-batch agreement verified with onnxruntime)
+# ONNX (fixed batch-1 graph + N-batch variant;
+#  parity and N-batch agreement verified with onnxruntime)
 uv run python -m hrffa.export.export_onnx \
 --ckpt $B \
 --preset student_s256_96gb_r2 \

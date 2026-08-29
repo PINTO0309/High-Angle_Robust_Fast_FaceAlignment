@@ -1,47 +1,55 @@
-# 050: 結果表(D-ViT 2411.07167 p.6 形式、vitl-320 / vitt-256 / hg0-256)
+# 050: Results tables (D-ViT 2411.07167 p.6 format; vitl-320 / vitt-256 / hg0-256 / vitt-096)
 
-2026-08-29 作成(ユーザー要望: docs/2411.07167v2.pdf の 6 ページ目(D-ViT の Table 1 / 2)と同型の表に、各データセットの評価と
-Yaw / Pitch / Roll の評価指標を含める)。数値は本リポジトリの計器(`orcdv.train.evaluate`)によるもの。
+Created 2026-08-29 (user request: tables in the same form as page 6 of docs/2411.07167v2.pdf (D-ViT's Table 1 / 2), covering
+the evaluation on each dataset together with yaw / pitch / roll metrics). All values come from this repository's own instruments
+(`hrffa.train.evaluate`).
 
-## 0. 読み方(必読)
+## 0. How to read these tables (required reading)
 
-- **絶対値は適合度**: 2026-08-26 以降の全モデルは実写の全 split(WFLW test / 300W / COFW test を含む)を学習に使っている
-  (036 §12、042 §0)。本表の official 数値は「学習分布への適合度」であり、**公開ベンチマークの数値(D-ViT の Table 1 / 2 など)とは
-  比較しない**。表の形式だけを借りている。**Table 1 / 2 の `D-ViT (paper)` 行は 2411.07167 v2 p.6 の "Ours" の公開値(未リークの
-  test ベンチマーク)で、ユーザー要望(2026-08-29)により併記した。本リポジトリの行(適合度)とは条件が異なるため、
-  数値の大小で優劣を論じない**。Table 3〜6 に対応する D-ViT の値はない
-- 未リークの計器は 300W-LP 由来の 300wlp_val(head-NME)だけ: vitl-320 0.0033 / vitt-256 0.0071 / hg0-256 0.0158 / vitt-096 0.0100(047 / 048)
-- **Yaw / Pitch / Roll**: 本モデル群は姿勢を出力しない(姿勢ヘッドは未学習で export からも除外、047 §2.2)ため、姿勢角の推定誤差
-  ではなく **姿勢別のランドマーク精度** で表す。(a) Table 3: pose-stress の実効姿勢ビン(6DRepNet 推定姿勢 + 付与回転)別の
-  inter-ocular NME、(b) Table 4: 画像面内回転(roll 0〜315°)別 NME = Roll360 等変性、(c) Table 5: カメラ pitch ±15/±25°・
-  yaw ±15° の射影摂動別 NME、(d) Table 6: 実写 3 セットを 6DRepNet 推定姿勢で層別した head-NME(クロップ辺長正規化)
-- pose-stress(024)は実写 + 厳密 GT 幾何変換なので、幾何変換に対する劣化率はリーク下でも解釈できる(042 §0)。
-  画質摂動(style-shift、Table 7)は 2026-08-29 のユーザー要望で追加。摂動はレンダリング後のクロップへ決定的に適用
-  (mblur9/21 = 30° 方向モーションブラー、warm/cool = チャネルゲイン、gamma0.6/1.6、gray、jpeg30 = JPEG 品質 30 再圧縮)。
-  絶対値は適合度(上記)、括弧内の劣化率は「学習分布に対する頑健性」として読む(042 §0: 精度が高いほど強ブラーの比率は大きく出る)
-  **摂動はクロップ画素単位**なので入力解像度が違うと強さが変わる: vitt-096 の mblur9/21 は 96 px クロップ上の 9/21 px
-  (256 換算で 24/56 px)、JPEG のブロックも相対的に大きい。vitt-096 の Table 7 は 256 系と横並びに読まない
+- **Absolute values are fit measures**: since 2026-08-26 every model is trained on all splits of the real-image datasets (including
+  WFLW test / 300W / COFW test) (036 §12, 042 §0). The official numbers in these tables therefore measure the fit to the training
+  distribution and **must not be compared with published benchmark results (e.g. D-ViT's Table 1 / 2)**; only the table format is
+  borrowed. **The `D-ViT (paper)` rows in Tables 1 / 2 are the published values of "Ours" in 2411.07167 v2 p.6 (unleaked test
+  benchmarks), listed side by side at the user's request (2026-08-29). Their conditions differ from this repository's rows (fit
+  measures), so no ranking is drawn from the numbers.** There are no D-ViT values corresponding to Tables 3–6.
+- The only unleaked instrument is 300wlp_val (head-NME on a held-out 300W-LP subset): vitl-320 0.0033 / vitt-256 0.0071 /
+  hg0-256 0.0158 / vitt-096 0.0100 (047 / 048).
+- **Yaw / pitch / roll**: these models do not output head pose (the pose head is untrained and excluded from the export, 047 §2.2),
+  so pose robustness is expressed as **landmark accuracy per pose**, not as a pose-angle error. (a) Table 3: inter-ocular NME per
+  effective pose bin of pose-stress (6DRepNet-estimated pose plus the applied rotation); (b) Table 4: NME per in-plane rotation
+  (roll 0–315°) = Roll360 equivariance; (c) Table 5: NME under projective camera perturbations of pitch ±15/±25° and yaw ±15°;
+  (d) Table 6: head-NME (normalized by the crop side) of the three real sets stratified by 6DRepNet-estimated pose.
+- pose-stress (024) uses real images with exact ground-truth geometric transforms, so the degradation under geometric transforms is
+  interpretable even with the leak (042 §0). The image-quality perturbations (style-shift, Table 7) were added at the user's request
+  on 2026-08-29. They are applied deterministically to the rendered crop (mblur9/21 = motion blur of 9/21 px along 30°, warm/cool =
+  channel gains, gamma0.6/1.6, gray, jpeg30 = re-compression at JPEG quality 30). The absolute values are fit measures (see above);
+  the degradation rates in parentheses are read as "robustness relative to the training distribution" (042 §0: the more accurate
+  the model, the larger the relative degradation under strong blur). **The perturbations are applied in crop pixels**, so their
+  strength changes with the input resolution: for vitt-096, mblur9/21 is 9/21 px on a 96 px crop (24/56 px in 256 terms) and the
+  JPEG blocks are relatively larger as well. Do not read vitt-096's Table 7 row side by side with the 256 models.
 
-## 1. モデル
+## 1. Models
 
-| Model | 構成 | 入力 | params | GMACs / GFLOPs | CPU ms |
+| Model | Configuration | Input | Params | GMACs / GFLOPs | CPU ms |
 |---|---|---|---|---|---|
-| vitl-320 | DINOv3 ViT-L/16 教師 + 点クエリデコーダ(clean_v3、047) | 320 | 308.2M | 131.3 / 262.6 | 520 |
-| vitt-256 | ViT-T/16 学生、教師 clean_v3 から蒸留(student_s256_96gb_r2、048 §1) | 256 | 9.0M | 2.05 / 4.09 | 12.4 |
-| hg0-256 | PP-HGNetV2-B0 stage0-2 + FPN + 小型デコーダ学生(student_hg0_wsd、048 §2、049) | 256 | 1.63M | 0.70 / 1.40 | 5.2 |
-| vitt-096 | ViT-T/16 学生 96×96、vitt-256(r2 e449)から fine-tune(student_s096_96gb_r2、048 §3) | 96 | 9.0M | 0.43 / 0.85 | 4.6 |
+| vitl-320 | DINOv3 ViT-L/16 teacher + point-query decoder (clean_v3, 047) | 320 | 308.2M | 131.3 / 262.6 | 520 |
+| vitt-256 | ViT-T/16 student distilled from teacher clean_v3 (student_s256_96gb_r2, 048 §1) | 256 | 9.0M | 2.05 / 4.09 | 12.4 |
+| hg0-256 | PP-HGNetV2-B0 stage0-2 + FPN + small-decoder student (student_hg0_wsd, 048 §2, 049) | 256 | 1.63M | 0.70 / 1.40 | 5.2 |
+| vitt-096 | ViT-T/16 student at 96×96, fine-tuned from vitt-256 (r2 e449) (student_s096_96gb_r2, 048 §3) | 96 | 9.0M | 0.43 / 0.85 | 4.6 |
 
-GMACs / GFLOPs は `torch.utils.flop_counter.FlopCounterMode`(batch 1、モデル全体 = バックボーン + デコーダ + ヘッド、FLOPs = 2 × MACs)。
-SDPA は CPU の flash 実装が数えられないため計測中だけ明示 matmul に差し替え、注意機構の QKᵀ / AV を含めた(vitl-320 の 16 GFLOPs、
-vitt-256 の 0.7 GFLOPs がその分。049 の hg0 0.68 GMACs はデコーダ注意を含まない値で、含めると 0.70)。
-参考(学習中・未評価): hg0-096 0.13 / 0.26(GMACs / GFLOPs)。
+GMACs / GFLOPs are measured with `torch.utils.flop_counter.FlopCounterMode` (batch 1, whole model = backbone + decoder + heads,
+FLOPs = 2 × MACs). Because the CPU flash implementation of SDPA is not counted, SDPA is replaced by an explicit matmul during the
+measurement only, so the QKᵀ / AV products of the attention are included (they account for 16 GFLOPs of vitl-320 and 0.7 GFLOPs of
+vitt-256; the 0.68 GMACs of hg0 in 049 excludes the decoder attention, 0.70 with it).
+For reference (still training, not evaluated): hg0-096 0.13 / 0.26 (GMACs / GFLOPs).
 
-計器はすべて `--use-ema --official / --stratify-real / --pose-stress --stress-n 300 / --style-shift --style-n 300`。
-ログ: `runs/<run>/eval_best_{official,stratreal,stress,style}.log`(vitl-320 は 2026-08-29 に 8GB 機で再実行、047 の値と一致)。
+All instruments are run with `--use-ema --official / --stratify-real / --pose-stress --stress-n 300 / --style-shift --style-n 300`.
+Logs: `runs/<run>/eval_best_{official,stratreal,stress,style}.log` (vitl-320 was re-run on the 8 GB machine on 2026-08-29; the
+values match 047).
 
-## 2. 表
+## 2. Tables
 
-### Table 1. NME(%、inter-ocular、低いほど良い)
+### Table 1. NME (%, inter-ocular, lower is better)
 | Model | WFLW Full | Pose | Expr. | Illum. | Makeup | Occl. | Blur | COFW Full | 300W Full | Comm. | Chal. |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | D-ViT (paper) | 3.75 | 6.43 | 3.85 | 4.06 | 3.57 | 4.47 | 4.37 | 4.13 | 2.85 | 2.43 | 4.56 |
@@ -50,7 +58,7 @@ vitt-256 の 0.7 GFLOPs がその分。049 の hg0 0.68 GMACs はデコーダ注
 | hg0-256 | 5.32 | 9.53 | 5.54 | 5.16 | 5.09 | 6.29 | 6.04 | 3.77 | 3.87 | 3.37 | 5.96 |
 | vitt-096 | 5.14 | 8.65 | 5.32 | 4.96 | 5.06 | 5.52 | 5.40 | 3.90 | 3.85 | 3.57 | 5.02 |
 
-### Table 2. WFLW の FR10(%、低いほど良い)と AUC10(%、高いほど良い)
+### Table 2. FR10 (%, lower is better) and AUC10 (%, higher is better) on WFLW
 | Model | FR10 Full | Pose | Exp. | Ill. | Mu. | Occ. | Blur | AUC10 Full | Pose | Exp. | Ill. | Mu. | Occ. | Blur |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | D-ViT (paper) | 1.76 | 8.28 | 1.27 | 1.29 | 1.94 | 3.80 | 2.07 | 63.7 | 40.1 | 62.6 | 64.7 | 64.7 | 57.1 | 58.6 |
@@ -59,7 +67,7 @@ vitt-256 の 0.7 GFLOPs がその分。049 の hg0 0.68 GMACs はデコーダ注
 | hg0-256 | 7.00 | 32.21 | 5.73 | 5.44 | 6.31 | 13.04 | 9.44 | 49.2 | 17.5 | 46.7 | 50.3 | 50.2 | 42.4 | 42.8 |
 | vitt-096 | 4.20 | 23.31 | 4.78 | 2.72 | 2.91 | 5.57 | 3.75 | 49.7 | 20.2 | 47.7 | 51.2 | 49.9 | 46.2 | 47.1 |
 
-### Table 3. Yaw / Pitch ビン別 NME(%、pose-stress の実効姿勢ビン)
+### Table 3. NME (%) by yaw / pitch bin (effective pose bins of pose-stress)
 | Model | Yaw 0–30 | Yaw 30–60 | Yaw 60–95 | Pitch −95..−45 | Pitch −45..−15 | Pitch −15..15 | Pitch 15..45 | Pitch 45..95 |
 |---|---|---|---|---|---|---|---|---|
 | vitl-320 | 1.26 | 1.71 | 2.04 | 1.76 | 1.37 | 1.30 | 1.29 | 1.85 |
@@ -68,7 +76,7 @@ vitt-256 の 0.7 GFLOPs がその分。049 の hg0 0.68 GMACs はデコーダ注
 | vitt-096 | 4.49 | 6.21 | 7.37 | 5.93 | 4.82 | 4.77 | 4.54 | 7.06 |
 | n | 5933 | 1124 | 143 | 223 | 2503 | 2944 | 1398 | 48 |
 
-### Table 4. Roll 別 NME(%、pose-stress、n=300/セット)
+### Table 4. NME (%) by roll (pose-stress, n=300 per set)
 | Model | Set | Roll 0 | 45 | 90 | 135 | 180 | 225 | 270 | 315 | worst−base |
 |---|---|---|---|---|---|---|---|---|---|---|
 | vitl-320 | wflw | 1.61 | 1.61 | 1.64 | 1.60 | 1.63 | 1.61 | 1.63 | 1.60 | +0.02 |
@@ -84,7 +92,7 @@ vitt-256 の 0.7 GFLOPs がその分。049 の hg0 0.68 GMACs はデコーダ注
 | vitt-096 | 300w | 4.58 | 4.41 | 4.55 | 4.50 | 5.03 | 5.11 | 5.14 | 4.71 | +0.57 |
 | vitt-096 | cofw | 4.74 | 4.61 | 4.72 | 4.49 | 4.73 | 4.49 | 4.56 | 4.55 | +0.00 |
 
-### Table 5. カメラ pitch / yaw 摂動別 NME(%、pose-stress、n=300/セット)
+### Table 5. NME (%) under camera pitch / yaw perturbation (pose-stress, n=300 per set)
 | Model | Set | base | cam pitch −25 | −15 | +15 | +25 | cam yaw −15 | +15 | p+25 y+15 | p−25 y−15 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | vitl-320 | wflw | 1.61 | 1.78 | 1.63 | 1.58 | 1.60 | 1.55 | 1.55 | 1.56 | 1.78 |
@@ -100,7 +108,7 @@ vitt-256 の 0.7 GFLOPs がその分。049 の hg0 0.68 GMACs はデコーダ注
 | vitt-096 | 300w | 4.58 | 4.49 | 4.39 | 4.41 | 4.10 | 4.24 | 4.34 | 4.06 | 4.41 |
 | vitt-096 | cofw | 4.74 | 4.53 | 4.49 | 4.45 | 4.18 | 4.33 | 4.42 | 4.20 | 4.47 |
 
-### Table 6. 6DRepNet 推定姿勢で層別した head-NME(×100、実写 3 セット 3,696 枚)
+### Table 6. head-NME (×100) stratified by 6DRepNet-estimated pose (3,696 real images from the three sets)
 | Model | mean | Yaw 0–30 | Yaw 30–60 | Yaw 60–95 | Pitch −90..−30 | Pitch −30..−10 | Pitch −10..10 | Pitch 10..30 | Pitch 30..90 |
 |---|---|---|---|---|---|---|---|---|---|
 | vitl-320 | 0.37 | 0.36 | 0.42 | 0.45 | 0.42 | 0.37 | 0.36 | 0.40 | 0.50 |
@@ -109,7 +117,7 @@ vitt-256 の 0.7 GFLOPs がその分。049 の hg0 0.68 GMACs はデコーダ注
 | vitt-096 | 1.27 | 1.22 | 1.46 | 1.58 | 1.48 | 1.27 | 1.22 | 1.38 | 1.71 |
 | n | | 2939 | 672 | 85 | 143 | 1076 | 2136 | 232 | 32 |
 
-### Table 7. style-shift: 画質摂動別 NME(%、括弧内は clean 比の劣化率、n=300/セット)
+### Table 7. style-shift: NME (%) per image-quality perturbation (degradation vs clean in parentheses, n=300 per set)
 | Model | Set | clean | mblur9 | mblur21 | warm | cool | gamma0.6 | gamma1.6 | gray | jpeg30 |
 |---|---|---|---|---|---|---|---|---|---|---|
 | vitl-320 | wflw_test | 1.49 | 1.57 (+5.5%) | 2.09 (+40.4%) | 1.51 (+1.4%) | 1.51 (+1.5%) | 1.50 (+1.1%) | 1.51 (+1.3%) | 1.60 (+7.8%) | 1.55 (+4.5%) |
@@ -126,15 +134,18 @@ vitt-256 の 0.7 GFLOPs がその分。049 の hg0 0.68 GMACs はデコーダ注
 | vitt-096 | cofw_test | 3.89 | 4.52 (+16.3%) | 15.95 (+310.4%) | 3.95 (+1.8%) | 3.95 (+1.6%) | 3.99 (+2.8%) | 4.00 (+2.8%) | 4.05 (+4.2%) | 4.08 (+5.0%) |
 
 
-## 3. 読み方の補足
+## 3. Additional notes
 
-- Table 1 / 2 は D-ViT の Table 1 / 2 と同じ列(WFLW 7 subset、COFW、300W 3 subset / WFLW の FR10・AUC10)。
-- Table 3〜5 の n は 3 セット(wflw / 300w / cofw、各 300 枚)× 16 構成 = 14,400 評価を実効姿勢で再分類したもの。
-  Roll(Table 4)は幾何的に厳密な等変性検査で、worst−base が小さいほど Roll360 等変。カメラ摂動(Table 5)は pitch を上向きに
-  倒す(+)と 3 モデルとも NME が下がる傾向(顎下からの見え方が有利)で、−25° と −25/−15 の複合が最悪。
-- Table 7 は全モデルで mblur21 が最悪(+30〜60%)、色調・gray・jpeg30 は +1〜+7%。学習側の光学的拡張(JPEG 品質 35〜85 を
-  確率 0.3、ノイズ・ぼかし・グレー化・明度/ガンマ)が分布内にしている。JPEG は品質 30 の 1 点のみ(スイープなし)
-- Table 6 の head-NME はクロップ辺長基準(pad 0.05、辺 = 頭部 bbox × 1.1)で、inter-ocular NME% とは単位が異なる
-  (概ね inter-ocular ≈ head-NME × 3〜4)。
+- Tables 1 / 2 have the same columns as D-ViT's Table 1 / 2 (the 7 WFLW subsets, COFW, the 3 300W subsets / FR10 and AUC10 on WFLW).
+- The n of Tables 3–5 comes from 3 sets (wflw / 300w / cofw, 300 images each) × 16 configurations = 14,400 evaluations re-binned by
+  effective pose. Roll (Table 4) is a geometrically exact equivariance check: the smaller worst−base, the more Roll360-equivariant
+  the model. Under the camera perturbations (Table 5), tilting the pitch upward (+) tends to lower the NME for every model (the
+  view from below the chin is favorable); for the 256 models, −25° and the −25/−15 combination are the worst.
+- In Table 7, mblur21 is the worst perturbation for every model (+30 to +60 % for the 256 models, +310 to +395 % for vitt-096, see
+  §0), while color temperature, gray and jpeg30 stay at +1 to +7 %. The photometric augmentations on the training side (JPEG
+  quality 35–85 with probability 0.3, noise, blur, grayscale, brightness / gamma) keep them in-distribution. JPEG is a single
+  point at quality 30 (no sweep).
+- The head-NME of Table 6 is normalized by the crop side (pad 0.05, side = head bbox × 1.1) and is therefore in different units from
+  inter-ocular NME % (roughly inter-ocular ≈ head-NME × 3–4).
 
-生成スクリプト: `scripts/make_results_tables.py`(eval_best_*.log を読むだけ。`uv run python scripts/make_results_tables.py > tables.md`)。
+Generator: `scripts/make_results_tables.py` (it only reads eval_best_*.log; `uv run python scripts/make_results_tables.py > tables.md`).
