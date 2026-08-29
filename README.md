@@ -1,5 +1,7 @@
 # HRFFA: High-Angle Robust Fast FaceAlignment
 
+![GitHub](https://img.shields.io/github/license/PINTO0309/Angle_Robust_Fast_FaceAlignment?color=2BAF2B) [![DOI](https://zenodo.org/badge/1341204426.svg)](https://doi.org/10.5281/zenodo.22161810) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/PINTO0309/Angle_Robust_Fast_FaceAlignment)
+
 A training, distillation and ONNX deployment pipeline for **whole-head face alignment that stays robust at extreme head poses while remaining light enough for CPU inference**.
 
 - **Face alignment on head crops, not face crops.** Conventional face-alignment papers assume a tightly cropped face region; this is a special-purpose model that works on a crop of the whole head instead. The architecture is therefore at a considerable disadvantage against paper benchmarks, but the intent is to take in more features by processing the entire head and the background context contained in a small margin at the same time. It is also the practical choice: object detectors localize whole heads far more stably than faces.
