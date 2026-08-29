@@ -4,14 +4,13 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 
 - For head crops that include looking up / looking down (measured pitch beyond ±85°), in-plane rotation over the **full 360° roll**, and profile views (yaw ±90°), the models output 68 / 98 / 29 landmarks plus a 3-class visibility label per point (outside the image / occluded / visible).
 - The teacher is a DINOv3 ViT-L/16 (320×320); the students are a ViT-T/16 (256 and 96 input) and a PP-HGNetV2-B0 based CNN (256). Students are trained by online distillation from the teacher and exported to ONNX graphs that run in 5–12 ms on a CPU.
-- Every decision, experiment and acceptance evaluation is kept as a numbered record under [history/](history/) (in Japanese). This README is the entry point.
 
 <p align="center">
   <img src="history/assets/050/teacher_clean_v3_lookup_yawpitchroll_3x3.jpg" width="48%" alt="teacher clean_v3: extreme pitch/yaw tiles with roll 0..320 deg">
   <img src="history/assets/050/student_vitt256_pitch_extremes_roll_3x3.jpg" width="38%" alt="student vitt-256: measured pitch extremes with roll">
 </p>
 
-<p align="center"><sub>Left: teacher vitl-320 on nine looking-up × profile tiles with a roll of 0–320° composited onto each tile. Right: student vitt-256 on measured pitch extremes (+86° to −89°) with roll. Predictions only.</sub></p>
+<p align="left"><sub>Left: teacher vitl-320 on nine looking-up × profile tiles with a roll of 0–320° composited onto each tile.<br>Right: student vitt-256 on measured pitch extremes (+86° to −89°) with roll. Predictions only.</sub></p>
 
 ## 1. Results at a glance
 
@@ -24,7 +23,7 @@ Excerpt from [history/050](history/050_results_tables.md) (inter-ocular NME %, l
 | hg0-256 | 256 | 1.63M | 0.70 | 5.2 | 5.32 | 9.53 | 3.87 | 3.77 | 0.0158 |
 | vitt-096 | 96 | 9.0M | 0.43 | 4.6 | 5.14 | 8.65 | 3.86 | 3.90 | 0.0100 |
 
-**How to read these numbers (important):** all splits of the real-image datasets — including WFLW test, 300W and COFW test — are used for training (history/036 §12). The "official" numbers above therefore measure how well the models fit the training distribution and **must not be compared with published benchmark results**. The only unleaked instrument is `300wlp_val`, derived from 300W-LP. The full tables — WFLW subsets, FR/AUC, breakdowns by pose (yaw / pitch / roll) and by image degradation, and the D-ViT paper values listed side by side with an explicit non-comparability note — follow in §1.1 (same content as 050 §2).
+**How to read these numbers (important):** all splits of the real-image datasets — including WFLW test, 300W and COFW test — are used for training. The "official" numbers above therefore measure how well the models fit the training distribution and **must not be compared with published benchmark results**. The only unleaked instrument is `300wlp_val`, derived from 300W-LP. The full tables — WFLW subsets, FR/AUC, breakdowns by pose (yaw / pitch / roll) and by image degradation, and the D-ViT paper values listed side by side with an explicit non-comparability note — follow in §1.1 (same content as 050 §2).
 
 ### 1.1 Full tables
 
@@ -120,12 +119,11 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 
 ## 2. Features
 
-- **Unified dataset**: 300W-LP / WFLW / 300W / COFW converted into a single JSONL format (head bbox, visibility, pose, and a per-record `license_tag`). Head boxes and face parts come from DEIMv2-Wholebody49 (Apache-2.0) pseudo labels; extreme poses are reinforced with depth-reprojection synthesis and generated image pools (history/002–007, 015–016, 025).
-- **Geometric augmentation composed into a single homography**: full 360° roll, camera pitch ±25° / yaw ±15°, horizontal flip (with left/right index swap), scale and translation are applied in one warp, and the GT coordinates, visibility and rotation matrix follow exactly (history/005). Photometric augmentation (brightness, gamma, grayscale, noise, blur, JPEG quality 35–85, motion blur) is applied on the training side as well.
-- **Online teacher → student distillation**: the same augmented crop is rendered at 320 for the teacher and at 256 (or 96) for the student; coordinate, visibility and decoder-token KD are combined with the GT losses (history/026). The learning-rate schedule is WSD (warmup → constant → cosine decay over the last epochs); the stable phase can be extended by editing `epochs` and resuming (history/044).
-- **Evaluation instruments** (`hrffa.train.evaluate`): official (inter-ocular NME / FR@0.1 / AUC@0.1), stratify-real (stratified by 6DRepNet-estimated pose), pose-stress (real images + exact GT geometric transforms to measure equivariance under 360° roll and camera pose, history/024), and style-shift (motion blur, color temperature, gamma, grayscale, JPEG).
-- **ONNX export** (`hrffa.export.export_onnx`): a static batch-1 graph is optimized with onnxslim → onnxsim (without Gemm fusion), checked for parity against PyTorch, and an N-batch variant (`<stem>_n.onnx`) is derived from it. The batch axis stays the leading axis of every Reshape and no rank-5 tensors are produced (history/045 §6).
-- **Decision records**: design decisions, ablations, acceptance evaluations and failure analyses are recorded chronologically under [history/](history/) (001–051).
+- **Unified dataset**: 300W-LP / WFLW / 300W / COFW converted into a single JSONL format (head bbox, visibility, pose, and a per-record `license_tag`). Head boxes and face parts come from DEIMv2-Wholebody49 (Apache-2.0) pseudo labels; extreme poses are reinforced with depth-reprojection synthesis and generated image pools.
+- **Geometric augmentation composed into a single homography**: full 360° roll, camera pitch ±25° / yaw ±15°, horizontal flip (with left/right index swap), scale and translation are applied in one warp, and the GT coordinates, visibility and rotation matrix follow exactly. Photometric augmentation (brightness, gamma, grayscale, noise, blur, JPEG quality 35–85, motion blur) is applied on the training side as well.
+- **Online teacher → student distillation**: the same augmented crop is rendered at 320 for the teacher and at 256 (or 96) for the student; coordinate, visibility and decoder-token KD are combined with the GT losses. The learning-rate schedule is WSD (warmup → constant → cosine decay over the last epochs); the stable phase can be extended by editing `epochs` and resuming.
+- **Evaluation instruments** (`hrffa.train.evaluate`): official (inter-ocular NME / FR@0.1 / AUC@0.1), stratify-real (stratified by 6DRepNet-estimated pose), pose-stress (real images + exact GT geometric transforms to measure equivariance under 360° roll and camera pose), and style-shift (motion blur, color temperature, gamma, grayscale, JPEG).
+- **ONNX export** (`hrffa.export.export_onnx`): a static batch-1 graph is optimized with onnxslim → onnxsim (without Gemm fusion), checked for parity against PyTorch, and an N-batch variant (`<stem>_n.onnx`) is derived from it. The batch axis stays the leading axis of every Reshape and no rank-5 tensors are produced.
 
 ## 3. Models and the ONNX I/O contract
 
@@ -144,13 +142,13 @@ output  points      float32 [N, K, 2]      coordinates relative to the crop (0..
 output  vis_logits  float32 [N, K, 3]      visibility logits (0 = outside the image, 1 = occluded, 2 = visible)
 ```
 
-- Crop: a square around the head bbox with a margin of 0.05 of the side length, rendered at S×S (the same geometry as in training and evaluation). The downscaling method (bilinear / area, with or without antialiasing) changes the results by less than ±1% (history/043 §6.1).
+- Crop: a square around the head bbox with a margin of 0.05 of the side length, rendered at S×S (the same geometry as in training and evaluation). The downscaling method (bilinear / area, with or without antialiasing) changes the results by less than ±1%.
 - Two files are written: the fixed batch-1 `*.onnx` and `*_n.onnx` with a symbolic batch axis `N`. Both are verified with onnxruntime to agree at batch sizes 1 / 2 / 3.
-- Head pose (rotation / roll_bit) is not an output. Pose supervision was permanently removed in history/012; derive pose with an add-on head or PnP if needed (history/047 §2.2).
+- Head pose (rotation / roll_bit) is not an output. Pose supervision is not used in training; derive pose with an add-on head or PnP if needed.
 
 ## 4. Setup
 
-Prerequisites: Linux, Python 3.13 (pinned in `.python-version`), [uv](https://docs.astral.sh/uv/), and an NVIDIA GPU (torch built for CUDA 12.8; an 8 GB GPU is enough for smoke tests, full training targets a 96 GB class GPU). Dependencies are pinned with `==` in `pyproject.toml` and hash-locked in `uv.lock` (history/009).
+Prerequisites: Linux, Python 3.13 (pinned in `.python-version`), [uv](https://docs.astral.sh/uv/), and an NVIDIA GPU (torch built for CUDA 12.8; an 8 GB GPU is enough for smoke tests, full training targets a 96 GB class GPU). Dependencies are pinned with `==` in `pyproject.toml` and hash-locked in `uv.lock`.
 
 ```bash
 git clone https://github.com/PINTO0309/High-Angle_Robust_Fast_FaceAlignment.git
@@ -167,11 +165,11 @@ uv run python -m unittest tests/test_model_arms.py      # sanity check (some tes
 | `vitt_distill.pt` | Initial weights of the ViT-T/16 student | ImageNet-pretrained weights distributed with DEIMv2 (Apache-2.0) |
 | `PPHGNetV2_B0_stage1.pth` | Initial backbone weights of the CNN student | ImageNet-pretrained weights distributed with DEIMv2 (Apache-2.0) |
 | `data/models/deimv2_*wholebody49*.onnx` | Pseudo labels for head boxes and face parts (DEIMv2-Wholebody49) | Apache-2.0 |
-| `data/models/depth_anything_v2_small.onnx`, `sixdrepnet360_*.onnx` | Depth-reprojection synthesis (history/006); pose QA and stratification (history/015, 024) | Follow each distributor's license |
+| `data/models/depth_anything_v2_small.onnx`, `sixdrepnet360_*.onnx` | Depth-reprojection synthesis; pose QA and stratification | Follow each distributor's license |
 
 ### 4.2 Data (`data/` → `datasets/unified/`)
 
-300W-LP, WFLW, 300W and COFW are distributed for research use and are not bundled. Place them under `data/` and convert them into the unified format (the 300W-LP conversion includes a coordinate offset correction, history/001 §1.2).
+300W-LP, WFLW, 300W and COFW are distributed for research use and are not bundled. Place them under `data/` and convert them into the unified format (the 300W-LP conversion includes a coordinate offset correction).
 
 ```bash
 uv run python -m hrffa.dataset.convert --source all --data-root data --out datasets/unified
@@ -180,7 +178,7 @@ uv run python -m hrffa.dataset.pseudolabel.apply ...   # apply the cache to the 
 uv run python -m hrffa.dataset.materialize --source all
 ```
 
-See `--help` of each CLI for the arguments. The procedures for synthetic data (depth reprojection, generated image pools) and self-training are in history/006, 015, 016 and 025.
+See `--help` of each CLI for the arguments.
 
 ## 5. Training, evaluation and export
 
@@ -213,7 +211,7 @@ Training logs are written to `runs/<preset>/train_log_<preset>.jsonl` (validatio
 
 ### Configuration (`configs/*.yaml`)
 
-Each preset stores **only the differences** from the defaults of `TrainConfig` (`src/hrffa/train/config.py`). `_base_:` inherits another preset (chained, last-wins merge, cycle detection; unknown keys are errors, history/013).
+Each preset stores **only the differences** from the defaults of `TrainConfig` (`src/hrffa/train/config.py`). `_base_:` inherits another preset (chained, last-wins merge, cycle detection; unknown keys are errors).
 
 | Preset | Contents |
 |---|---|
@@ -222,7 +220,7 @@ Each preset stores **only the differences** from the defaults of `TrainConfig` (
 | `student_s256_96gb_r2` | ViT-T @256, second round from the old A1 best (WSD 450) |
 | `student_s096_96gb_r2` | ViT-T @96, fine-tuned from the r2 best |
 | `student_hg0_wsd` / `student_hg0_s096_wsd` | CNN student @256 / @96 |
-| `abl_*` | Ablations (history/017, 021, 030, 035, 045, 046) |
+| `abl_*` | Ablations |
 | `smoke_s_8gb` | Smoke test on an 8 GB GPU |
 
 ## 6. Repository layout
@@ -237,8 +235,7 @@ src/hrffa/
   export/           export_onnx.py, nbatch.py (fixed batch-1 → N-batch conversion and graph rewrites)
 scripts/            run_phase_a.sh (run the student arms back to back), make_results_tables.py
 tests/              unit tests (model, export, N-batch conversion, dataset conversion)
-history/            decision records 001–051 (design, ablations, acceptance evaluations, failure analyses), assets/
-docs/               referenced papers and external implementations (for reference only; no code is copied, history/001 §1.3)
+history/            050_results_tables.md (results tables) and assets/050/ (README figures)
 ckpts/ data/ datasets/ runs/ onnx/   weights, raw data, unified data and training outputs (not tracked by git)
 ```
 
@@ -348,7 +345,7 @@ ckpts/ data/ datasets/ runs/ onnx/   weights, raw data, unified data and trainin
 }
 ```
 
-**POPoS** — distance-map + multilateration decoding (ablation arm D8, history/046). Paper: https://arxiv.org/abs/2410.09583
+**POPoS** — distance-map + multilateration decoding (ablation arm D8). Paper: https://arxiv.org/abs/2410.09583
 
 ```bibtex
 @inproceedings{xiang2025popos,
@@ -360,7 +357,7 @@ ckpts/ data/ datasets/ runs/ onnx/   weights, raw data, unified data and trainin
 }
 ```
 
-**LESA** — local term added in parallel to self-attention (ablation arm D7, history/045). Paper: https://arxiv.org/abs/2107.05637
+**LESA** — local term added in parallel to self-attention (ablation arm D7). Paper: https://arxiv.org/abs/2107.05637
 
 ```bibtex
 @article{yang2021lesa,
@@ -425,5 +422,5 @@ ckpts/ data/ datasets/ runs/ onnx/   weights, raw data, unified data and trainin
 ### 8.5 Acknowledgements
 
 - Meta AI for DINOv3, the DEIMv2 authors for the detector and the PP-HGNetV2 weights (originally from PaddlePaddle's PaddleClas / PaddleDetection), the authors of 6DRepNet360 and Depth Anything V2 for the tools used in data QA and synthesis, and the dataset authors of 300W-LP, WFLW, 300W and COFW.
-- The generated head-image pools used to reinforce extreme poses were produced with OpenAI's image generation API (history/016); the synthetic data is not redistributed.
+- The generated head-image pools used to reinforce extreme poses were produced with OpenAI's image generation API; the synthetic data is not redistributed.
 - The ONNX post-processing know-how (batch-axis preservation, N-batch derivation, rank-5 elimination) builds on the author's PersonViT export pipeline and the [PINTO_model_zoo](https://github.com/PINTO0309/PINTO_model_zoo) conventions.
