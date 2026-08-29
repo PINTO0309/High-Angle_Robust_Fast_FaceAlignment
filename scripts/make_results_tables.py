@@ -10,7 +10,8 @@ from pathlib import Path
 MODELS = [("vitl-320", "runs/clean_v3", "clean_v3 e198 (ViT-L/16 @320, teacher)"),
           ("vitt-256", "runs/student_s256_96gb_r2", "student_s256_96gb_r2 e449 (ViT-T/16 @256)"),
           ("hg0-256", "runs/student_hg0_wsd", "student_hg0_wsd e386 (PP-HGNetV2-B0 + FPN @256)"),
-          ("vitt-096", "runs/student_s096_96gb_r2", "student_s096_96gb_r2 e247 (ViT-T/16 @96, fine-tuned from vitt-256)")]
+          ("vitt-096", "runs/student_s096_96gb_r2", "student_s096_96gb_r2 e247 (ViT-T/16 @96, fine-tuned from vitt-256)"),
+          ("hg0-096", "runs/student_hg0_s096_wsd", "student_hg0_s096_wsd e134 (PP-HGNetV2-B0 + FPN @96, fine-tuned from hg0-256)")]
 
 def load(run):
     d = Path(run); out = {}

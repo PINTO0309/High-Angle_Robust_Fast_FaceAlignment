@@ -4,7 +4,7 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 
 - **Face alignment on head crops, not face crops.** Conventional face-alignment papers assume a tightly cropped face region; this is a special-purpose model that works on a crop of the whole head instead. The architecture is therefore at a considerable disadvantage against paper benchmarks, but the intent is to take in more features by processing the entire head and the background context contained in a small margin at the same time. It is also the practical choice: object detectors localize whole heads far more stably than faces.
 - For head crops that include looking up / looking down (measured pitch beyond ±85°), in-plane rotation over the **full 360° roll**, and profile views (yaw ±90°), the models output 68 / 98 / 29 landmarks plus a 3-class visibility label per point (outside the image / occluded / visible).
-- The teacher is a DINOv3 ViT-L/16 (320×320); the students are a ViT-T/16 (256 and 96 input) and a PP-HGNetV2-B0 based CNN (256). Students are trained by online distillation from the teacher and exported to ONNX graphs that run in 5–12 ms on a CPU.
+- The teacher is a DINOv3 ViT-L/16 (320×320); the students are a ViT-T/16 (256 and 96 input) and a PP-HGNetV2-B0 based CNN (256 and 96 input). Students are trained by online distillation from the teacher and exported to ONNX graphs that run in 1.5–12 ms on a CPU.
 
 <p align="center">
   <img src="history/assets/050/teacher_clean_v3_lookup_yawpitchroll_3x3.jpg" width="46%" alt="teacher clean_v3: extreme pitch/yaw tiles with roll 0..320 deg">
@@ -24,6 +24,7 @@ inter-ocular NME %, lower is better; CPU latency on an i9-10900K with onnxruntim
 | vitt-256 | 256 | 9.0M | 2.05 | 4.09 | 12.4 | 3.36 | 5.64 | 2.66 | 2.76 |
 | hg0-256 | 256 | 1.6M | 0.70 | 1.40 | 5.2 | 5.32 | 9.53 | 3.87 | 3.77 |
 | vitt-096 | 96 | 9.0M | 0.43 | 0.85 | 4.6 | 5.14 | 8.65 | 3.86 | 3.90 |
+| hg0-096 | 96 | 1.6M | 0.13 | 0.26 | 1.5 | 7.46 | 14.71 | 4.77 | 4.99 |
 
 **How to read these numbers (important):** all splits of the real-image datasets — including WFLW test, 300W and COFW test — are used for training. The "official" numbers above therefore measure how well the models fit the training distribution and **must not be compared with published benchmark results**. The only unleaked instrument is `300wlp_val` (head-NME on a held-out 300W-LP subset; values in 050). The full tables — WFLW subsets, FR/AUC, breakdowns by pose (yaw / pitch / roll) and by image degradation, and the D-ViT paper values listed side by side with an explicit non-comparability note — follow in §1.1 (same content as 050 §2). The `D-ViT (paper)` row lists the published benchmark values of arXiv 2411.07167 (Tables 1 / 2, "Ours": 256×256 input, 8 prediction blocks = 96.4M parameters per its Table S1) for format reference only. The paper does not report FLOPs or latency; the GMACs / GFLOPs are our estimate from the [official code](https://github.com/Human3DAIGC/AccurateFacialLandmarkDetection) with its default arguments (8 prediction blocks, 32×32 heatmaps, depth 256, 256×256 input, all 8 stages, batch 1, same `FlopCounterMode` method as the other rows) and are approximate because that configuration has 101.1M parameters, about 5 % more than Table S1. Its COFW NME is normalized by the inter-pupil distance instead of inter-ocular, and its test sets are held out from training, so no ranking against the fit measures above is implied.
 
@@ -33,7 +34,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 
 - **Absolute values are fit measures** (all real-image splits are in the training data). The `D-ViT (paper)` rows in Tables 1 / 2 are the published test-benchmark values of arXiv 2411.07167 (p.6, "Ours") and are listed for format reference only — the conditions differ, so no ranking is implied.
 - **Yaw / pitch / roll**: the models do not output head pose, so pose robustness is expressed as landmark accuracy per pose. Table 3: inter-ocular NME per effective pose bin (6DRepNet-estimated pose plus the applied rotation, 3 sets × 300 images × 16 configurations). Table 4: NME per in-plane roll (exact 360° roll equivariance; a small worst−base means equivariant). Table 5: NME under projective camera pitch ±15/±25° and yaw ±15° perturbations. Table 6: head-NME (normalized by the crop side, not inter-ocular) of the three real sets stratified by 6DRepNet-estimated pose.
-- **Table 7 perturbations are applied in crop pixels** (mblur9/21 = 30° motion blur of 9/21 px, warm/cool = channel gains, gamma 0.6/1.6, gray, jpeg30 = JPEG quality 30). Their strength therefore depends on the input resolution: for vitt-096 a 21 px blur on a 96 px crop corresponds to ~56 px at 256, so its Table 7 row is not comparable with the 256 models.
+- **Table 7 perturbations are applied in crop pixels** (mblur9/21 = 30° motion blur of 9/21 px, warm/cool = channel gains, gamma 0.6/1.6, gray, jpeg30 = JPEG quality 30). Their strength therefore depends on the input resolution: for the 96 models (vitt-096 / hg0-096) a 21 px blur on a 96 px crop corresponds to ~56 px at 256, so their Table 7 rows are not comparable with the 256 models.
 
 #### Table 1. NME (%, inter-ocular, lower is better)
 | Model | WFLW<br>Full | <br>Pose | <br>Exp | <br>Ill | <br>Mu | <br>Occ | <br>Blur | COFW<br>Full | 300W<br>Full | <br>Comm | <br>Chal |
@@ -43,6 +44,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-256 | 3.36 | 5.64 | 3.43 | 3.25 | 3.19 | 3.56 | 3.60 | 2.76 | 2.66 | 2.36 | 3.90 |
 | hg0-256 | 5.32 | 9.53 | 5.54 | 5.16 | 5.09 | 6.29 | 6.04 | 3.77 | 3.87 | 3.37 | 5.96 |
 | vitt-096 | 5.14 | 8.65 | 5.32 | 4.96 | 5.06 | 5.52 | 5.40 | 3.90 | 3.85 | 3.57 | 5.02 |
+| hg0-096 | 7.46 | 14.71 | 7.77 | 7.19 | 8.10 | 8.91 | 8.16 | 4.99 | 4.77 | 4.24 | 6.91 |
 
 #### Table 2. FR10 (%, lower is better) and AUC10 (%, higher is better) on WFLW
 | Model | FR10<br>Full | <br>Pose | <br>Exp | <br>Ill | <br>Mu | <br>Occ | <br>Blur | AUC10<br>Full | <br>Pose | <br>Exp | <br>Ill | <br>Mu | <br>Occ | <br>Blur |
@@ -52,6 +54,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-256 | 0.28 | 1.53 | 0.32 | 0.00 | 0.00 | 0.54 | 0.52 | 66.5 | 43.9 | 65.7 | 67.5 | 68.2 | 64.5 | 64.1 |
 | hg0-256 | 7.00 | 32.21 | 5.73 | 5.44 | 6.31 | 13.04 | 9.44 | 49.2 | 17.5 | 46.7 | 50.3 | 50.2 | 42.4 | 42.8 |
 | vitt-096 | 4.20 | 23.31 | 4.78 | 2.72 | 2.91 | 5.57 | 3.75 | 49.7 | 20.2 | 47.7 | 51.2 | 49.9 | 46.2 | 47.1 |
+| hg0-096 | 17.88 | 67.48 | 18.79 | 14.18 | 20.87 | 26.09 | 22.38 | 36.1 | 5.8 | 31.9 | 37.6 | 34.4 | 28.7 | 30.0 |
 
 #### Table 3. NME (%) by yaw / pitch bin (effective pose bins of pose-stress)
 | Model | Yaw<br>0–30 | Yaw<br>30–60 | Yaw<br>60–95 | Pitch<br>−95..−45 | Pitch<br>−45..−15 | Pitch<br>−15..15 | Pitch<br>15..45 | Pitch<br>45..95 |
@@ -60,6 +63,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-256 | 2.94 | 4.10 | 4.68 | 4.07 | 3.20 | 3.06 | 2.99 | 4.43 |
 | hg0-256 | 4.21 | 6.35 | 8.14 | 6.26 | 4.63 | 4.46 | 4.35 | 7.51 |
 | vitt-096 | 4.49 | 6.21 | 7.37 | 5.93 | 4.82 | 4.77 | 4.54 | 7.06 |
+| hg0-096 | 5.69 | 8.70 | 10.85 | 8.02 | 6.17 | 6.21 | 5.79 | 10.07 |
 | n | 5933 | 1124 | 143 | 223 | 2503 | 2944 | 1398 | 48 |
 
 #### Table 4. NME (%) by in-plane roll (pose-stress, n=300 per set)
@@ -77,6 +81,9 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-096 | wflw | 6.30 | 6.05 | 6.17 | 5.98 | 6.30 | 6.26 | 6.40 | 6.19 | +0.10 |
 | | 300w | 4.58 | 4.41 | 4.55 | 4.50 | 5.03 | 5.11 | 5.14 | 4.71 | +0.57 |
 | | cofw | 4.74 | 4.61 | 4.72 | 4.49 | 4.73 | 4.49 | 4.56 | 4.55 | +0.00 |
+| hg0-096 | wflw | 8.89 | 9.03 | 9.09 | 9.21 | 8.98 | 9.33 | 9.90 | 8.72 | +1.01 |
+| | 300w | 5.57 | 5.61 | 5.82 | 6.07 | 6.40 | 6.59 | 6.05 | 5.95 | +1.03 |
+| | cofw | 5.84 | 5.79 | 6.05 | 5.71 | 5.76 | 5.51 | 5.68 | 5.73 | +0.21 |
 
 #### Table 5. NME (%) under camera pitch / yaw perturbation (pose-stress, n=300 per set)
 | Model | Set | base | cam<br>pitch<br>−25 | <br><br>−15 | <br><br>+15 | <br><br>+25 | cam<br>yaw<br>−15 | <br><br>+15 | <br><br>p+25,y+15 | <br><br>p−25,y−15 |
@@ -93,6 +100,9 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-096 | wflw | 6.30 | 5.94 | 5.83 | 5.97 | 5.51 | 5.78 | 5.76 | 5.30 | 6.05 |
 | | 300w | 4.58 | 4.49 | 4.39 | 4.41 | 4.10 | 4.24 | 4.34 | 4.06 | 4.41 |
 | | cofw | 4.74 | 4.53 | 4.49 | 4.45 | 4.18 | 4.33 | 4.42 | 4.20 | 4.47 |
+| hg0-096 | wflw | 8.89 | 8.20 | 8.27 | 8.44 | 7.72 | 8.37 | 8.19 | 7.35 | 8.34 |
+| | 300w | 5.57 | 5.38 | 5.38 | 5.45 | 4.94 | 5.16 | 5.25 | 4.81 | 5.34 |
+| | cofw | 5.84 | 5.62 | 5.57 | 5.67 | 5.28 | 5.35 | 5.53 | 5.13 | 5.48 |
 
 #### Table 6. head-NME (×100) stratified by 6DRepNet-estimated pose (3,696 real images from the three sets)
 | Model | mean | Yaw<br>0–30 | Yaw<br>30–60 | Yaw<br>60–95 | Pitch<br>−90..−30 | Pitch<br>−30..−10 | Pitch<br>−10..10 | Pitch<br>10..30 | Pitch<br>30..90 |
@@ -101,6 +111,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-256 | 0.85 | 0.81 | 0.98 | 1.01 | 0.98 | 0.85 | 0.82 | 0.93 | 1.13 |
 | hg0-256 | 1.29 | 1.21 | 1.60 | 1.85 | 1.71 | 1.28 | 1.21 | 1.50 | 2.09 |
 | vitt-096 | 1.27 | 1.22 | 1.46 | 1.58 | 1.48 | 1.27 | 1.22 | 1.38 | 1.71 |
+| hg0-096 | 1.75 | 1.60 | 2.22 | 2.85 | 2.53 | 1.76 | 1.59 | 2.04 | 2.94 |
 | n | | 2939 | 672 | 85 | 143 | 1076 | 2136 | 232 | 32 |
 
 #### Table 7. style-shift: NME (%) under image degradations (in parentheses: degradation vs clean, n=300 per set)
@@ -118,6 +129,9 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-096 | wflw_test | 5.01 | 6.26 (+25.0%) | 24.80 (+395.2%) | 5.10 (+1.9%) | 5.09 (+1.6%) | 5.13 (+2.4%) | 5.21 (+4.1%) | 5.37 (+7.3%) | 5.36 (+7.0%) |
 | | 300w_valid | 3.82 | 4.42 (+15.8%) | 18.31 (+379.4%) | 3.86 (+1.1%) | 3.86 (+1.1%) | 3.90 (+2.1%) | 3.94 (+3.1%) | 3.96 (+3.8%) | 4.04 (+5.8%) |
 | | cofw_test | 3.89 | 4.52 (+16.3%) | 15.95 (+310.4%) | 3.95 (+1.8%) | 3.95 (+1.6%) | 3.99 (+2.8%) | 4.00 (+2.8%) | 4.05 (+4.2%) | 4.08 (+5.0%) |
+| hg0-096 | wflw_test | 7.01 | 9.18 (+31.0%) | 32.00 (+356.7%) | 7.15 (+2.0%) | 7.30 (+4.2%) | 7.11 (+1.5%) | 7.36 (+5.0%) | 7.77 (+10.9%) | 9.10 (+29.9%) |
+| | 300w_valid | 4.64 | 5.68 (+22.5%) | 19.79 (+326.5%) | 4.68 (+1.0%) | 4.74 (+2.1%) | 4.70 (+1.2%) | 4.72 (+1.7%) | 4.80 (+3.5%) | 5.60 (+20.8%) |
+| | cofw_test | 5.03 | 5.71 (+13.7%) | 18.03 (+258.9%) | 5.07 (+0.8%) | 5.15 (+2.4%) | 5.04 (+0.3%) | 5.16 (+2.6%) | 5.19 (+3.2%) | 5.74 (+14.2%) |
 
 ## 2. Features
 
@@ -129,12 +143,12 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 
 ## 3. Models and the ONNX I/O contract
 
-| | Teacher vitl-320 | Students vitt-256 / vitt-096 | Student hg0-256 |
+| | Teacher vitl-320 | Students vitt-256 / vitt-096 | Students hg0-256 / hg0-096 |
 |---|---|---|---|
 | Backbone | DINOv3 ViT-L/16 (the official implementation is imported at runtime from the torch.hub cache; its code is not vendored) | ViT-T/16 (own implementation with RoPE, initialized from `ckpts/vitt_distill.pt`) | PP-HGNetV2-B0 stages 0–2 (own implementation) + FPN (stride 8) |
 | Head | Point-query Transformer decoder (d256, 4 layers) with coordinate regression and visibility | Same (d256, 3 layers) | Same (d128, 2 layers, 4 heads) |
 | Input normalization | ImageNet mean/std | center05 `(x/255 − 0.5)/0.5` (no normalization op inside the ONNX graph) | center05, folded into the stem conv (no input op at all) |
-| Preset | `clean_v3` | `student_s256_96gb_r2` / `student_s096_96gb_r2` | `student_hg0_wsd` |
+| Preset | `clean_v3` | `student_s256_96gb_r2` / `student_s096_96gb_r2` | `student_hg0_wsd` / `student_hg0_s096_wsd` |
 
 ONNX (example for `--scheme ibug68`; `wflw98` / `cofw29` are exported as separate files):
 
