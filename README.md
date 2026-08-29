@@ -15,7 +15,7 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 
 ## 1. Results at a glance
 
-Excerpt from [history/050](history/050_results_tables.md) (inter-ocular NME %, lower is better; CPU latency on an i9-10900K with onnxruntime 1.22 CPU EP, batch 1).
+inter-ocular NME %, lower is better; CPU latency on an i9-10900K with onnxruntime 1.22 CPU EP, batch 1.
 
 | Model | Input | Params | GMACs | GFLOPs | CPU ms | WFLW Full | WFLW Pose | 300W Full | COFW |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
