@@ -34,8 +34,8 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 - **Table 7 perturbations are applied in crop pixels** (mblur9/21 = 30° motion blur of 9/21 px, warm/cool = channel gains, gamma 0.6/1.6, gray, jpeg30 = JPEG quality 30). Their strength therefore depends on the input resolution: for vitt-096 a 21 px blur on a 96 px crop corresponds to ~56 px at 256, so its Table 7 row is not comparable with the 256 models.
 
 #### Table 1. NME (%, inter-ocular, lower is better)
-| Model | WFLW Full | Pose | Expr. | Illum. | Makeup | Occl. | Blur | COFW Full | 300W Full | Comm. | Chal. |
-|---|---|---|---|---|---|---|---|---|---|---|---|
+| Model | WFLW<br>Full | <br>Pose | <br>Expr. | <br>Illum. | <br>Makeup | <br>Occl. | <br>Blur | COFW<br>Full | 300W<br>Full | <br>Comm. | <br>Chal. |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | D-ViT (paper) | 3.75 | 6.43 | 3.85 | 4.06 | 3.57 | 4.47 | 4.37 | 4.13 | 2.85 | 2.43 | 4.56 |
 | vitl-320 | 1.51 | 2.54 | 1.55 | 1.47 | 1.42 | 1.56 | 1.58 | 1.21 | 1.03 | 0.96 | 1.34 |
 | vitt-256 | 3.36 | 5.64 | 3.43 | 3.25 | 3.19 | 3.56 | 3.60 | 2.76 | 2.66 | 2.36 | 3.90 |
@@ -43,8 +43,8 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-096 | 5.14 | 8.65 | 5.32 | 4.96 | 5.06 | 5.52 | 5.40 | 3.90 | 3.85 | 3.57 | 5.02 |
 
 #### Table 2. FR10 (%, lower is better) and AUC10 (%, higher is better) on WFLW
-| Model | FR10 Full | Pose | Exp. | Ill. | Mu. | Occ. | Blur | AUC10 Full | Pose | Exp. | Ill. | Mu. | Occ. | Blur |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Model | FR10<br>Full | <br>Pose | <br>Exp. | <br>Ill. | <br>Mu. | <br>Occ. | <br>Blur | AUC10<br>Full | <br>Pose | <br>Exp. | <br>Ill. | <br>Mu. | <br>Occ. | <br>Blur |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | D-ViT (paper) | 1.76 | 8.28 | 1.27 | 1.29 | 1.94 | 3.80 | 2.07 | 63.7 | 40.1 | 62.6 | 64.7 | 64.7 | 57.1 | 58.6 |
 | vitl-320 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 84.9 | 74.5 | 84.5 | 85.4 | 85.8 | 84.4 | 84.2 |
 | vitt-256 | 0.28 | 1.53 | 0.32 | 0.00 | 0.00 | 0.54 | 0.52 | 66.5 | 43.9 | 65.7 | 67.5 | 68.2 | 64.5 | 64.1 |
@@ -52,8 +52,8 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-096 | 4.20 | 23.31 | 4.78 | 2.72 | 2.91 | 5.57 | 3.75 | 49.7 | 20.2 | 47.7 | 51.2 | 49.9 | 46.2 | 47.1 |
 
 #### Table 3. NME (%) by yaw / pitch bin (effective pose bins of pose-stress)
-| Model | Yaw 0–30 | Yaw 30–60 | Yaw 60–95 | Pitch −95..−45 | Pitch −45..−15 | Pitch −15..15 | Pitch 15..45 | Pitch 45..95 |
-|---|---|---|---|---|---|---|---|---|
+| Model | Yaw<br>0–30 | Yaw<br>30–60 | Yaw<br>60–95 | Pitch<br>−95..−45 | Pitch<br>−45..−15 | Pitch<br>−15..15 | Pitch<br>15..45 | Pitch<br>45..95 |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|
 | vitl-320 | 1.26 | 1.71 | 2.04 | 1.76 | 1.37 | 1.30 | 1.29 | 1.85 |
 | vitt-256 | 2.94 | 4.10 | 4.68 | 4.07 | 3.20 | 3.06 | 2.99 | 4.43 |
 | hg0-256 | 4.21 | 6.35 | 8.14 | 6.26 | 4.63 | 4.46 | 4.35 | 7.51 |
@@ -62,7 +62,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 
 #### Table 4. NME (%) by in-plane roll (pose-stress, n=300 per set)
 | Model | Set | Roll 0 | 45 | 90 | 135 | 180 | 225 | 270 | 315 | worst−base |
-|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | vitl-320 | wflw | 1.61 | 1.61 | 1.64 | 1.60 | 1.63 | 1.61 | 1.63 | 1.60 | +0.02 |
 | vitl-320 | 300w | 1.12 | 1.11 | 1.14 | 1.11 | 1.13 | 1.11 | 1.13 | 1.11 | +0.01 |
 | vitl-320 | cofw | 1.29 | 1.30 | 1.31 | 1.30 | 1.30 | 1.30 | 1.30 | 1.29 | +0.02 |
@@ -77,8 +77,8 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-096 | cofw | 4.74 | 4.61 | 4.72 | 4.49 | 4.73 | 4.49 | 4.56 | 4.55 | +0.00 |
 
 #### Table 5. NME (%) under camera pitch / yaw perturbation (pose-stress, n=300 per set)
-| Model | Set | base | cam pitch −25 | −15 | +15 | +25 | cam yaw −15 | +15 | p+25 y+15 | p−25 y−15 |
-|---|---|---|---|---|---|---|---|---|---|---|
+| Model | Set | base | cam pitch<br>−25 | <br>−15 | <br>+15 | <br>+25 | cam yaw<br>−15 | <br>+15 | <br>p+25, y+15 | <br>p−25, y−15 |
+|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | vitl-320 | wflw | 1.61 | 1.78 | 1.63 | 1.58 | 1.60 | 1.55 | 1.55 | 1.56 | 1.78 |
 | vitl-320 | 300w | 1.12 | 1.25 | 1.15 | 1.09 | 1.10 | 1.08 | 1.08 | 1.08 | 1.22 |
 | vitl-320 | cofw | 1.29 | 1.36 | 1.29 | 1.26 | 1.29 | 1.23 | 1.24 | 1.25 | 1.35 |
@@ -93,8 +93,8 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 | vitt-096 | cofw | 4.74 | 4.53 | 4.49 | 4.45 | 4.18 | 4.33 | 4.42 | 4.20 | 4.47 |
 
 #### Table 6. head-NME (×100) stratified by 6DRepNet-estimated pose (3,696 real images from the three sets)
-| Model | mean | Yaw 0–30 | Yaw 30–60 | Yaw 60–95 | Pitch −90..−30 | Pitch −30..−10 | Pitch −10..10 | Pitch 10..30 | Pitch 30..90 |
-|---|---|---|---|---|---|---|---|---|---|
+| Model | mean | Yaw<br>0–30 | Yaw<br>30–60 | Yaw<br>60–95 | Pitch<br>−90..−30 | Pitch<br>−30..−10 | Pitch<br>−10..10 | Pitch<br>10..30 | Pitch<br>30..90 |
+|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | vitl-320 | 0.37 | 0.36 | 0.42 | 0.45 | 0.42 | 0.37 | 0.36 | 0.40 | 0.50 |
 | vitt-256 | 0.85 | 0.81 | 0.98 | 1.01 | 0.98 | 0.85 | 0.82 | 0.93 | 1.13 |
 | hg0-256 | 1.29 | 1.21 | 1.60 | 1.85 | 1.71 | 1.28 | 1.21 | 1.50 | 2.09 |
@@ -103,7 +103,7 @@ All tables below are generated from `runs/<run>/eval_best_{official,stratreal,st
 
 #### Table 7. style-shift: NME (%) under image degradations (in parentheses: degradation vs clean, n=300 per set)
 | Model | Set | clean | mblur9 | mblur21 | warm | cool | gamma0.6 | gamma1.6 | gray | jpeg30 |
-|---|---|---|---|---|---|---|---|---|---|---|
+|---|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
 | vitl-320 | wflw_test | 1.49 | 1.57 (+5.5%) | 2.09 (+40.4%) | 1.51 (+1.4%) | 1.51 (+1.5%) | 1.50 (+1.1%) | 1.51 (+1.3%) | 1.60 (+7.8%) | 1.55 (+4.5%) |
 | vitl-320 | 300w_valid | 1.04 | 1.13 (+8.6%) | 1.46 (+40.6%) | 1.06 (+2.0%) | 1.05 (+1.2%) | 1.06 (+1.8%) | 1.05 (+1.4%) | 1.09 (+4.9%) | 1.08 (+4.3%) |
 | vitl-320 | cofw_test | 1.21 | 1.27 (+5.3%) | 1.60 (+32.3%) | 1.22 (+1.3%) | 1.23 (+1.5%) | 1.22 (+1.1%) | 1.22 (+1.2%) | 1.27 (+5.0%) | 1.25 (+3.6%) |
