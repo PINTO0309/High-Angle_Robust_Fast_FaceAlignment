@@ -299,7 +299,43 @@ uv run python demo/demo_hrffa_onnx.py \
 -am data/models/hrffa_vitl_ibug68_1x3x320x320.onnx
 ```
 
-Options: `-d cpu|cuda|tensorrt` (default: CUDA if available), `--head_score_threshold 0.5`, `--draw_lines` (ibug68 contour lines), `--disable_bbox`, `--point_radius`, `--save_raw_predictions` (per-image / per-frame JSON with head boxes, points and the 3-class visibility), `--disable_imshow`, `--disable_video_writer`. Keys for video / camera input: `ESC` quit, `b` toggle head boxes, `l` toggle contour lines. Rendering follows the project convention: predictions only, single color, no visibility color coding.
+Camera input is opened at VGA (640×480) in both demos. Options: `-d cpu|cuda|tensorrt` (default: CUDA if available), `--head_score_threshold 0.5`, `--draw_lines` (ibug68 contour lines), `--disable_bbox`, `--point_radius`, `--save_raw_predictions` (per-image / per-frame JSON with head boxes, points and the 3-class visibility), `--disable_imshow`, `--disable_video_writer`. Keys for video / camera input: `ESC` quit, `b` toggle head boxes, `l` toggle contour lines. Rendering follows the project convention: predictions only, single color, no visibility color coding.
+
+### Web demo (`demo/web/`, Electron + onnxruntime-web on WebGPU / WASM)
+
+The same two-stage pipeline entirely in the browser engine, derived from the web runtime of [PINTO0309/soma](https://github.com/PINTO0309/soma/tree/main/web): Electron + Vite + React + TypeScript with [onnxruntime-web](https://onnxruntime.ai/docs/tutorials/web/) 1.27.0 (WebGPU execution provider, WASM fallback). Inference runs in a **dedicated Web Worker** by default (`--web-inference-worker main` runs the engines on the UI thread instead), the input is a webcam (VGA), a video file or an image file, and the crop geometry and normalization are identical to the Python demo. The Electron shell (`electron/main.ts`) carries the WebGPU command-line switches of the reference (`ignore-gpu-blocklist`, `enable-zero-copy`, `disable-gpu-sandbox`, `enable-unsafe-webgpu`, `enable-webgpu-developer-features`, `enable-features=Vulkan,WebGPU,WebGPUService,SharedArrayBuffer`, `use-webgpu-adapter=default`), injects the COOP / COEP isolation headers and grants camera access. The page also runs in a plain Chrome / Edge 113+ (`pnpm run dev:browser`); every asset (page, wasm runtime, models) is served from the app's own origin — no CDN.
+
+```bash
+# DEIMv2 detectors must be rewritten for onnxruntime-web first (double -> float32, negative axes
+# normalized, 1-D MatMul operands made 2-D, IsNaN / IsInf expressed with Equal / Abs / Greater so the
+# decoder stays on the GPU, unreachable nodes pruned) and are passed through the same
+# optimization pipeline as the HRFFA exports (onnxslim without Gemm fusion -> onnxsim without optimization
+# passes -> rank-5 qkv rewrite of the ViT attention -> canonicalized fixed graph); every output is verified
+# against the original with onnxruntime (graph optimizations off).
+# Output names are shortened and tagged, e.g. deimv2_dinov3_s_wholebody49_boxes_only_webgpu.onnx. Only the
+# boxes-only graphs are staged and listed (masks output removed with hrffa.dataset.pseudolabel.make_boxes_only,
+# mask head pruned): {hgnetv2_n, dinov3_s, dinov3_x}; the UI defaults to the MIT-licensed
+# yolov9_t_wholebody34_0100_1x3x640x640.onnx (see below). The legacy data/models/deimv2_wholebody49_boxes_only.onnx
+# (X backbone) is published as deimv2_dinov3_x_wholebody49_boxes_only_webgpu.onnx:
+uv run python scripts/onnx_web_compat.py data/models/deimv2_*_boxes_only.onnx --out-dir demo/web/models
+
+cd demo/web
+corepack enable pnpm     # Node >= 22; the project pins pnpm@10.33.0 via "packageManager"
+pnpm install             # pnpm only (npm / yarn are refused); stages models + wasm, provisions the electron binary
+pnpm run fetch:models    # no local models? download the ONNX files from the `weights` release into demo/web/models/
+                         # (every file is checked against the SHA-256 pinned in models.lock.json), then pnpm run prepare:assets
+pnpm run dev -- --web-inference-worker main   # engines on the UI thread instead of the worker
+pnpm run dev -- --devtools                    # open DevTools (detached); closed by default, View > Toggle Developer Tools also works
+pnpm run dev             # vite dev server + electron window (dedicated inference worker)
+pnpm run start           # production build (dist/ + dist-electron/) and launch electron from file://
+pnpm run dev:browser     # vite only: open http://localhost:5274 in Chrome / Edge
+```
+
+The detector slot also accepts the raw-head YOLOv9-Wholebody34 exports of [PINTO_model_zoo/455_YOLOv9-Wholebody34](https://github.com/PINTO0309/PINTO_model_zoo/tree/main/455_YOLOv9-Wholebody34) — these are the **MIT-licensed YOLOv9** models trained with [PINTO0309/YOLO](https://github.com/PINTO0309/YOLO) (an MIT re-implementation of YOLOv9 / YOLOv7 / YOLO-RD), not the GPL-3.0 official YOLOv9 code, so they can be redistributed with this demo (`yolov9_{n,t}_wholebody34_0100_1x3x640x640.onnx`, output `[1, 4+34, 8400]`, class 7 = head; both are on the `weights` release and fetched by `fetch:models`; `yolov9_t` is the default detector of the web demo): they are staged as they are — the score threshold and a greedy NMS (IoU 0.5) run in the app, no graph rewrite is needed (≈ 22 ms per frame for yolov9_n / yolov9_t on the RTX 3070 with WebGPU). All ONNX files of the demo (the rewritten `deimv2_*_boxes_only_webgpu.onnx` detectors, the YOLOv9 exports and the `hrffa_*` graphs) are published on the [`weights` release](https://github.com/PINTO0309/High-Angle_Robust_Fast_FaceAlignment/releases/tag/weights); `scripts/fetch-models.mjs` downloads them and refuses any file whose SHA-256 differs from `models.lock.json`. `scripts/prepare-assets.mjs` (run by `pnpm install`, `dev` and `build`) stages `demo/web/models/deimv2_*_boxes_only_webgpu.onnx` (the rewritten detectors; masks variants are neither staged nor listed) and `data/models/hrffa_*.onnx` (the HRFFA graphs run unmodified; files above 300 MB such as the ViT-L teacher are skipped unless `HRFFA_WEB_INCLUDE_LARGE=1`), and copies the onnxruntime-web wasm files next to them. URL parameters: `?backend=wasm|webgpu`, `?worker=dedicated|main`, `?detector=<file>`, `?aligner=<file>`, `?image=<same-origin URL>` or `?video=<same-origin URL>` with `&autostart=1`.
+
+Measured in Chrome 151 / Electron 43 on an RTX 3070 (WebGPU EP, second run on a still image; WASM = single thread): DEIMv2 boxes-only detectors ≈ 60–65 ms per frame in the app including preprocessing (dinov3_s graph alone ≈ 50 ms; after the rewrites only the 9 int64 index ops of the post-processor remain on the CPU, the rest of the graph runs on WebGPU), vitt-256 ≈ 20 ms per head (N-batch: 9 heads in 144 ms), hg0-256 ≈ 10 ms per head (9 heads in 46 ms); WASM: hgnetv2_n ≈ 610 ms, hg0-256 ≈ 55 ms per head.
+
+Supply-chain hardening (same policy as the reference project this demo is derived from): every dependency is pinned to an exact version and `pnpm-lock.yaml` is committed with integrity hashes (the resolution was taken over unchanged from the reference project — the lockfile is a strict subset of it); `minimumReleaseAge: 10080` in `pnpm-workspace.yaml` refuses any package version published less than 7 days ago; dependency build scripts are blocked except `electron` (official binary download verified against SHASUMS256) and `esbuild`; installs with npm / yarn are refused by a `preinstall` guard; the page ships a strict Content-Security-Policy and loads nothing from third-party hosts.
 
 ### Configuration (`configs/*.yaml`)
 
@@ -325,8 +361,9 @@ src/hrffa/
   model/            teacher.py (the model), vit_tiny.py, hgnetv2.py, export_modules.py (export-time MHA), popos.py, losses.py
   train/            train_teacher.py, distill_student.py, evaluate.py, config.py
   export/           export_onnx.py, nbatch.py (fixed batch-1 → N-batch conversion and graph rewrites)
-scripts/            run_phase_a.sh (run the student arms back to back), make_results_tables.py
+scripts/            run_phase_a.sh (run the student arms back to back), make_results_tables.py, onnx_web_compat.py (DEIMv2 graphs -> onnxruntime-web)
 demo/               demo_hrffa_onnx.py (ONNX demo: DEIMv2-Wholebody49 head detection + HRFFA landmarks; images / video / camera)
+  web/              Electron / browser demo (Vite + React + onnxruntime-web, WebGPU / WASM, dedicated worker; pinned pnpm lockfile)
 tests/              unit tests (model, export, N-batch conversion, dataset conversion)
 history/            050_results_tables.md (results tables) and assets/050/ (README figures)
 ckpts/ data/ datasets/ runs/ onnx/   weights, raw data, unified data and training outputs (not tracked by git)
@@ -392,6 +429,32 @@ ckpts/ data/ datasets/ runs/ onnx/   weights, raw data, unified data and trainin
   year   = {2026},
   month  = {05},
   doi    = {10.5281/zenodo.10229410}
+}
+```
+
+**YOLOv9-Wholebody34 (MIT-licensed YOLOv9)** — optional head detector of the web demo (`yolov9_{n,t}_wholebody34_0100_1x3x640x640.onnx`, PINTO_model_zoo #455). The models are trained and exported with [PINTO0309/YOLO](https://github.com/PINTO0309/YOLO), an MIT-licensed re-implementation of YOLOv9 / YOLOv7 / YOLO-RD; the GPL-3.0 official YOLOv9 code is not used. Original paper: https://arxiv.org/abs/2402.13616
+
+```bibtex
+@software{PINTO0309_YOLO,
+  author = {Katsuya Hyodo},
+  title  = {An {MIT} License of {YOLOv9}, {YOLOv7}, {YOLO-RD}},
+  url    = {https://github.com/PINTO0309/YOLO},
+  year   = {2025}
+}
+
+@software{YOLOv9-Wholebody34,
+  author = {Katsuya Hyodo},
+  title  = {{YOLOv9-Wholebody34}: whole-body 34-class detector trained with the {MIT}-licensed {YOLOv9}},
+  url    = {https://github.com/PINTO0309/PINTO_model_zoo/tree/main/455_YOLOv9-Wholebody34},
+  year   = {2025}
+}
+
+@article{wang2024yolov9,
+  title   = {{YOLOv9}: Learning What You Want to Learn Using Programmable Gradient Information},
+  author  = {Wang, Chien-Yao and Yeh, I-Hau and Liao, Hong-Yuan Mark},
+  journal = {arXiv preprint arXiv:2402.13616},
+  year    = {2024},
+  url     = {https://arxiv.org/abs/2402.13616}
 }
 ```
 

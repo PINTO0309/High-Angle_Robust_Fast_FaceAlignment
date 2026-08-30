@@ -373,6 +373,9 @@ def process_video(pipeline: Pipeline, video: str, output_dir: Path, save_raw: bo
     cap = cv2.VideoCapture(int(video) if is_int(video) else video)
     if not cap.isOpened():
         raise RuntimeError(f"Failed to open video source: {video}")
+    if is_int(video):  # カメラ入力は VGA(640×480)に固定する
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     print(f"Processing video source: {video}")
     writer = None
     frame_index = 0

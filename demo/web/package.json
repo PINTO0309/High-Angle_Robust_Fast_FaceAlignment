@@ -1,0 +1,40 @@
+{
+  "name": "hrffa-web",
+  "version": "1.0.0",
+  "description": "HRFFA web runtime: Electron + Vite + TypeScript + React + onnxruntime-web (WebGPU / WASM) — DEIMv2-Wholebody49 head detection + HRFFA face alignment on a webcam, a video file or an image",
+  "private": true,
+  "main": "dist-electron/main.js",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10.16.0"
+  },
+  "scripts": {
+    "preinstall": "node scripts/require-pnpm.mjs",
+    "postinstall": "node scripts/prepare-assets.mjs && node scripts/ensure-electron.mjs",
+    "prepare:assets": "node scripts/prepare-assets.mjs",
+    "fetch:models": "node scripts/fetch-models.mjs",
+    "dev": "node scripts/prepare-assets.mjs && node scripts/dev.mjs",
+    "dev:browser": "node scripts/prepare-assets.mjs && vite",
+    "typecheck": "tsc -p tsconfig.app.json --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "build": "node scripts/prepare-assets.mjs && pnpm run typecheck && vite build && tsc -p tsconfig.electron.json",
+    "start": "pnpm run build && node scripts/run-electron.mjs dist-electron/main.js",
+    "preview": "vite preview",
+    "audit": "pnpm audit --audit-level=low"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "onnxruntime-web": "1.27.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.5",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "5.2.0",
+    "electron": "43.3.0",
+    "typescript": "5.9.3",
+    "vite": "7.3.6"
+  }
+}

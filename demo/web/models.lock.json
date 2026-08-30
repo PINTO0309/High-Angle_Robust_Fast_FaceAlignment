@@ -1,0 +1,70 @@
+{
+  "baseUrl": "https://github.com/PINTO0309/High-Angle_Robust_Fast_FaceAlignment/releases/download/weights",
+  "files": [
+    {
+      "name": "deimv2_dinov3_s_wholebody49_boxes_only_webgpu.onnx",
+      "bytes": 42446226,
+      "sha256": "5d28520b84b8b0bb56e7b460680da0b3132ec702a84bf0244e01818d21a3b0b3"
+    },
+    {
+      "name": "deimv2_dinov3_x_wholebody49_boxes_only_webgpu.onnx",
+      "bytes": 205405852,
+      "sha256": "678552c26bcb246bef601cced0a18c0e62e86106c4c0b2518cf9b21fcdafc898"
+    },
+    {
+      "name": "deimv2_hgnetv2_n_wholebody49_boxes_only_webgpu.onnx",
+      "bytes": 15985699,
+      "sha256": "f24d8fa18583c75ce8d802e3d983af9d13a07fdc294267968a206dc79df85d36"
+    },
+    {
+      "name": "hrffa_hg0_ibug68_1x3x256x256.onnx",
+      "bytes": 6869275,
+      "sha256": "2b770365053dd9f8cc4f57819da0bfa57a2417360e518eeba3bbad8a2201b468"
+    },
+    {
+      "name": "hrffa_hg0_ibug68_1x3x96x96.onnx",
+      "bytes": 6418683,
+      "sha256": "5c09213ce5a3422c6f14814f56157b05cc0ecf1cd063749685c2d58744dd8e92"
+    },
+    {
+      "name": "hrffa_hg0_ibug68_Nx3x256x256.onnx",
+      "bytes": 6880606,
+      "sha256": "f9ff34239fd2916fe901a82a4d839e8e7ef3ae4efbd7e12546d9d698b280b351"
+    },
+    {
+      "name": "hrffa_hg0_ibug68_Nx3x96x96.onnx",
+      "bytes": 6430014,
+      "sha256": "87aaa824caa75eae3140d26b5851957f64ea98d8b967c53f6618fcdb95c1bde6"
+    },
+    {
+      "name": "hrffa_vitt_ibug68_1x3x256x256.onnx",
+      "bytes": 35786181,
+      "sha256": "f849af432427ae6d2e9fc1ce2d9bd27134af6e2e3a00060d0d7d312ccfc1d602"
+    },
+    {
+      "name": "hrffa_vitt_ibug68_1x3x96x96.onnx",
+      "bytes": 35447564,
+      "sha256": "918103162c57db33406baf9fa25172b3998c312896dca3777432d38a7aab7759"
+    },
+    {
+      "name": "hrffa_vitt_ibug68_Nx3x256x256.onnx",
+      "bytes": 35805656,
+      "sha256": "579effd57896d9a8477a1604648c58459005eb76403bd3d72530dfa38352ee84"
+    },
+    {
+      "name": "hrffa_vitt_ibug68_Nx3x96x96.onnx",
+      "bytes": 35467036,
+      "sha256": "178697dbc0ef2d0c6ae4a669870168d9358c76f8ebf03cea886508a1698c802d"
+    },
+    {
+      "name": "yolov9_n_wholebody34_0100_1x3x640x640.onnx",
+      "bytes": 3221705,
+      "sha256": "a5ece478fc918787258afccd0b313e54319f8f39aeb1ceca11f27dbd269e78bc"
+    },
+    {
+      "name": "yolov9_t_wholebody34_0100_1x3x640x640.onnx",
+      "bytes": 8192670,
+      "sha256": "7dd9b514426b33423ffbc4e22fb6127f2145686441f2c398170585363c009575"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# pnpm project settings (supply-chain hardening)
+#
+# minimumReleaseAge: refuse any package version published less than 7 days
+# ago (10080 minutes) — a freshly compromised release cannot enter this
+# project before the ecosystem has had time to catch it.
+minimumReleaseAge: 10080
+
+# pnpm v10 blocks dependency build scripts by default; only these two are
+# allowed to run theirs (electron: binary download with SHASUMS256
+# verification, esbuild: platform binary validation).
+onlyBuiltDependencies:
+  - electron
+  - esbuild

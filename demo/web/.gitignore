@@ -1,0 +1,7 @@
+node_modules/
+dist/
+dist-electron/
+public/models/
+public/wasm/
+public/samples/
+models/
