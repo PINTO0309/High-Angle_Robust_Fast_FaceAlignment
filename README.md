@@ -19,6 +19,10 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 
   https://github.com/user-attachments/assets/144e485e-ec5c-460d-9cfb-58334accb92a
 
+- TensorRT BF16
+
+  https://github.com/user-attachments/assets/1226ea6c-7f49-4dcd-8c35-39701a192b5d
+
 - WebGPU + YOLOv9-MIT Demo
 
   https://github.com/user-attachments/assets/1266c08b-3c2d-4aa6-8804-0427716a56d1
