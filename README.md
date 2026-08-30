@@ -209,6 +209,10 @@ uv run python -m hrffa.dataset.materialize --source all
 
 See `--help` of each CLI for the arguments.
 
+In addition, I added a large volume of synthetic datasets I created myself to significantly compensate for distributional weaknesses in the publicly available datasets. Everything is mechanically composited using gpt-image-2, combining non-existent people and backgrounds. The GT automatically generated values ​​that appear largely correct based on statistical data.
+
+<img width="1200" height="1200" alt="grid_3x3" src="https://github.com/user-attachments/assets/f82b1ab1-dd5a-479f-90b9-bb14bc693cab" />
+
 ## 5. Training, evaluation and export
 
 ```bash
