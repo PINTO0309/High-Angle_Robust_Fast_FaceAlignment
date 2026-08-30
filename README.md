@@ -31,7 +31,7 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 
 inter-ocular NME %, lower is better; CPU latency on an i9-10900K with onnxruntime 1.22 CPU EP, batch 1.
 
-Checkpoints and ONNX: https://github.com/PINTO0309/High-Angle_Robust_Fast_FaceAlignment/releases/tag/weights
+Checkpoints and ONNX/TFLite(LiteRT): https://github.com/PINTO0309/High-Angle_Robust_Fast_FaceAlignment/releases/tag/weights
 
 | Model | Input | Params | GMACs | GFLOPs | CPU ms | WFLW Full | WFLW Pose | 300W Full | COFW |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|
