@@ -12,7 +12,6 @@ dependencies = [
     "tqdm==4.70.0",
     "torch==2.11.0",
     "onnx==1.19.1",
-    "onnxruntime-gpu==1.22.0",
     "onnxsim==0.7.3",
     "onnxslim==0.1.94",
     "matplotlib==3.11.1",
@@ -23,8 +22,22 @@ dependencies = [
     "sit4onnx==1.0.10",
 ]
 
+# onnxruntime-gpu is selected through mutually exclusive dependency groups (one package cannot be
+# pinned to two versions at once, and uv has default groups but no default extras):
+#   ort      (default) 1.22.0 — the version the export / parity toolchain is validated with
+#   tensorrt           1.26.0 — TensorRT EP with trt_bf16_enable (BF16); CUDA 12 build
+# uv sync --frozen                                   -> ort (unchanged default)
+# uv sync --frozen --no-group ort --group tensorrt   -> tensorrt
+# `uv run` syncs the default groups again before running: pass the same flags to it
+# (uv run --no-group ort --group tensorrt python ...) or use `uv run --no-sync`.
 [dependency-groups]
 dev = []
+ort = ["onnxruntime-gpu==1.22.0"]
+tensorrt = ["onnxruntime-gpu==1.26.0"]
+
+[tool.uv]
+default-groups = ["dev", "ort"]
+conflicts = [[{ group = "ort" }, { group = "tensorrt" }]]
 
 [[tool.uv.index]]
 name = "pytorch-cu128"

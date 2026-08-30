@@ -84,7 +84,97 @@ class HeadResult:
 # ---------------------------------------------------------------------------
 # onnxruntime
 # ---------------------------------------------------------------------------
-def build_providers(device: str | None, model_path: Path, inference_type: str) -> list:
+@dataclass
+class TrtSettings:
+    """TensorRT EP の精度とエンジンキャッシュの置き場所(起動時に 1 回だけ決める)。"""
+    precision: str          # fp16 / bf16 / int8
+    cache_dir: Path
+    ort_version: str
+    trt_version: str
+    compute_capability: str
+
+
+def _ort_version_tuple() -> tuple[int, int]:
+    major, minor = (int(v) for v in ort.__version__.split(".")[:2])
+    return major, minor
+
+
+def _tensorrt_version() -> str:
+    """libnvinfer の getInferLibVersion() から TensorRT の版を得る(tensorrt の Python パッケージは不要)。"""
+    import ctypes
+    import ctypes.util
+    for name in ("nvinfer", "nvinfer.so.10", "nvinfer.so.8"):
+        path = ctypes.util.find_library(name) if "." not in name else f"lib{name}"
+        if not path:
+            continue
+        try:
+            lib = ctypes.CDLL(path)
+            lib.getInferLibVersion.restype = ctypes.c_int32
+            v = int(lib.getInferLibVersion())
+            return f"{v // 10000}.{(v // 100) % 100}.{v % 100}"
+        except OSError:
+            continue
+    return "unknown"
+
+
+def _compute_capability() -> str:
+    """GPU の compute capability(例 "86")。torch が無ければ "unknown"。"""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            major, minor = torch.cuda.get_device_capability(0)
+            return f"{major}{minor}"
+    except Exception:  # noqa: BLE001
+        pass
+    return "unknown"
+
+
+def resolve_trt_precision(inference_type: str) -> str:
+    """`auto`: onnxruntime >= 1.25(trt_bf16_enable あり)かつ Ampere 以降なら bf16、それ以外は fp16。
+
+    明示指定は尊重するが、bf16 は onnxruntime < 1.25 では受理されないのでエラーにする。
+    """
+    version = _ort_version_tuple()
+    bf16_available = version >= (1, 25)
+    cc = _compute_capability()
+    bf16_hw = cc == "unknown" or int(cc) >= 80
+    if inference_type == "auto":
+        if not bf16_available:
+            print(f"onnxruntime-gpu >= 1.25.0 is recommended for TensorRT (BF16 via trt_bf16_enable); installed {ort.__version__}, "
+                  "using fp16. Install the tensorrt dependency group and keep its flags on uv run: "
+                  "uv sync --frozen --no-group ort --group tensorrt && uv run --no-group ort --group tensorrt python ...")
+            return "fp16"
+        if not bf16_hw:
+            print(f"GPU compute capability {cc} does not support BF16 in TensorRT (needs >= 8.0); using fp16")
+            return "fp16"
+        return "bf16"
+    if inference_type == "bf16" and not bf16_available:
+        raise RuntimeError(f"--inference_type bf16 needs onnxruntime-gpu >= 1.25 (installed {ort.__version__}); "
+                           "install the tensorrt dependency group and run with the same flags: "
+                           "uv run --no-group ort --group tensorrt python ...")
+    return inference_type
+
+
+def prepare_trt_cache(cache_root: Path, precision: str) -> TrtSettings:
+    """エンジンキャッシュを onnxruntime 版 / TensorRT 版 / 精度 / GPU ごとのディレクトリに分け、
+    別の onnxruntime 版で作られたキャッシュは削除する(版が変わったエンジンは必ず作り直す)。"""
+    import shutil
+    ort_version = ort.__version__
+    trt_version = _tensorrt_version()
+    cc = _compute_capability()
+    cache_root.mkdir(parents=True, exist_ok=True)
+    prefix = f"ort-{ort_version}_"
+    for entry in sorted(cache_root.iterdir()):
+        if entry.is_dir() and entry.name.startswith("ort-") and not entry.name.startswith(prefix):
+            shutil.rmtree(entry)
+            print(f"Removed stale TensorRT engine cache built with another onnxruntime version: {entry}")
+    cache_dir = cache_root / f"{prefix}trt-{trt_version}_{precision}_sm{cc}"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    return TrtSettings(precision=precision, cache_dir=cache_dir, ort_version=ort_version,
+                       trt_version=trt_version, compute_capability=cc)
+
+
+def build_providers(device: str | None, trt: TrtSettings | None = None) -> list:
     """参考デモ(DEIMv2-Wholebody49)と同じ規則で実行プロバイダを組む。"""
     available = set(ort.get_available_providers())
     requested = (device or "").lower()
@@ -95,17 +185,23 @@ def build_providers(device: str | None, model_path: Path, inference_type: str) -
     if requested == "tensorrt":
         if "TensorrtExecutionProvider" not in available:
             raise RuntimeError("TensorrtExecutionProvider is not available in this onnxruntime build.")
-        if inference_type == "fp16":
+        if trt is None:
+            raise ValueError("TensorRT settings are required for the tensorrt device")
+        if trt.precision == "fp16":
             type_params = {"trt_fp16_enable": True}
-        elif inference_type == "int8":
+        elif trt.precision == "bf16":
+            type_params = {"trt_bf16_enable": True}
+        elif trt.precision == "int8":
             type_params = {"trt_fp16_enable": True, "trt_int8_enable": True,
                            "trt_int8_calibration_table_name": "calibration.flatbuffers"}
         else:
-            raise ValueError(f"Unsupported inference type for TensorRT: {inference_type}")
+            raise ValueError(f"Unsupported inference type for TensorRT: {trt.precision}")
         providers: list = [(
             "TensorrtExecutionProvider",
             {"trt_engine_cache_enable": True,
-             "trt_engine_cache_path": str(model_path.parent),
+             "trt_engine_cache_path": str(trt.cache_dir),
+             "trt_timing_cache_enable": True,
+             "trt_timing_cache_path": str(trt.cache_dir),
              "trt_op_types_to_exclude": "NonMaxSuppression,NonZero,RoiAlign"} | type_params,
         )]
         if "CUDAExecutionProvider" in available:
@@ -117,6 +213,19 @@ def build_providers(device: str | None, model_path: Path, inference_type: str) -
     if device is None and "CUDAExecutionProvider" in available:
         return ["CUDAExecutionProvider", "CPUExecutionProvider"]
     return ["CPUExecutionProvider"]
+
+
+_ORT_LOG_LEVELS = {"verbose": 0, "info": 1, "warning": 2, "error": 3, "fatal": 4}
+
+
+def set_ort_log_level(level: str) -> None:
+    """onnxruntime のグローバル(Default)ロガーの重大度を設定する。
+
+    TensorRT EP がエンジン構築中に出す `[W:onnxruntime:Default, tensorrt_execution_provider…]`
+    (Int64 binding、timing cache 未作成など)はセッションの log_severity_level では抑制できず、
+    こちらで決まる。既定は error(警告を出さない)。
+    """
+    ort.set_default_logger_severity(_ORT_LOG_LEVELS[level])
 
 
 def make_session(model_path: Path, providers: list) -> ort.InferenceSession:
@@ -306,12 +415,17 @@ def save_records(output_dir: Path, stem: str, results: Sequence[HeadResult]) -> 
 # ---------------------------------------------------------------------------
 class Pipeline:
     def __init__(self, args: argparse.Namespace):
+        set_ort_log_level(args.ort_log_level)
         det_path, aln_path = Path(args.detector_model), Path(args.alignment_model)
-        self.detector = HeadDetector(det_path, build_providers(args.device, det_path, args.inference_type),
-                                     args.head_score_threshold)
+        self.trt: TrtSettings | None = None
+        if (args.device or "").lower() == "tensorrt":
+            self.trt = prepare_trt_cache(Path(args.trt_cache_dir), resolve_trt_precision(args.inference_type))
+            print(f"TensorRT: precision {self.trt.precision} (onnxruntime {self.trt.ort_version}, TensorRT {self.trt.trt_version}, "
+                  f"sm{self.trt.compute_capability}), engine cache {self.trt.cache_dir}")
+        providers = build_providers(args.device, self.trt)
+        self.detector = HeadDetector(det_path, providers, args.head_score_threshold)
         input_norm = args.input_norm if args.input_norm != "auto" else infer_input_norm(aln_path)
-        self.aligner = FaceAligner(aln_path, build_providers(args.device, aln_path, args.inference_type),
-                                   input_norm, args.crop_pad)
+        self.aligner = FaceAligner(aln_path, providers, input_norm, args.crop_pad)
         self.draw_bbox = not args.disable_bbox
         self.draw_lines = args.draw_lines
         self.point_radius = args.point_radius
@@ -424,7 +538,13 @@ def parse_args() -> argparse.Namespace:
     src.add_argument("-v", "--video", type=str, help="video file path or camera index")
     ap.add_argument("-o", "--output_dir", type=str, default="output")
     ap.add_argument("-d", "--device", type=str, default=None, help="cpu, cuda, cuda:0 or tensorrt (default: cuda if available)")
-    ap.add_argument("--inference_type", type=str, choices=["fp16", "int8"], default="fp16", help="TensorRT precision")
+    ap.add_argument("--inference_type", type=str, choices=["auto", "fp16", "bf16", "int8"], default="auto",
+                    help="TensorRT precision; auto = bf16 with onnxruntime-gpu >= 1.25 on Ampere or newer GPUs, otherwise fp16")
+    ap.add_argument("--ort_log_level", type=str, choices=list(_ORT_LOG_LEVELS), default="error",
+                    help="onnxruntime global log level (default: error, which hides the TensorRT engine-build warnings)")
+    ap.add_argument("--trt_cache_dir", type=str, default="data/models/trt_cache",
+                    help="TensorRT engine cache root; engines are kept per onnxruntime / TensorRT version, precision and GPU, "
+                         "and caches built with another onnxruntime version are deleted at startup")
     ap.add_argument("--head_score_threshold", type=float, default=0.50)
     ap.add_argument("--crop_pad", type=float, default=0.05, help="head-bbox margin ratio of the square crop (training value: 0.05)")
     ap.add_argument("--input_norm", type=str, choices=["auto", "center05", "imagenet"], default="auto",

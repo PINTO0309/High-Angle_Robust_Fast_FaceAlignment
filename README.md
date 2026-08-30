@@ -184,7 +184,17 @@ Prerequisites: Linux, Python 3.13 (pinned in `.python-version`), [uv](https://do
 ```bash
 git clone https://github.com/PINTO0309/High-Angle_Robust_Fast_FaceAlignment.git
 cd High-Angle_Robust_Fast_FaceAlignment
-uv sync --frozen
+uv sync --frozen                                   # default: onnxruntime-gpu 1.22.0 (the validated toolchain)
+uv sync --frozen --no-group ort --group tensorrt   # alternative: onnxruntime-gpu 1.26.0 for TensorRT BF16 (trt_bf16_enable)
+# NOTE: `uv run` re-syncs the environment with the DEFAULT groups before running, i.e. a plain
+# `uv run python ...` silently switches back to 1.22.0. Keep the same group flags on `uv run`
+# (or use `uv run --no-sync` / `.venv/bin/python` after the manual sync):
+uv run --no-group ort --group tensorrt \
+python demo/demo_hrffa_onnx.py \
+-v 0 \
+-o output_dir \
+-d tensorrt
+
 uv run python -m unittest tests/test_model_arms.py
 ```
 
@@ -291,6 +301,13 @@ uv run python demo/demo_hrffa_onnx.py \
 -o output_dir \
 -d cuda
 
+uv run --no-group ort --group tensorrt \
+python demo/demo_hrffa_onnx.py \
+-v 0 \
+-o output_dir \
+-d tensorrt \
+--head_score_threshold 0.70
+
 uv run python demo/demo_hrffa_onnx.py \
 -v input.mp4 \
 -o output_dir \
@@ -303,7 +320,7 @@ uv run python demo/demo_hrffa_onnx.py \
 -am data/models/hrffa_vitl_ibug68_1x3x320x320.onnx
 ```
 
-Camera input is opened at VGA (640×480) in both demos. Options: `-d cpu|cuda|tensorrt` (default: CUDA if available), `--head_score_threshold 0.5`, `--draw_lines` (ibug68 contour lines), `--disable_bbox`, `--point_radius`, `--save_raw_predictions` (per-image / per-frame JSON with head boxes, points and the 3-class visibility), `--disable_imshow`, `--disable_video_writer`. Keys for video / camera input: `ESC` quit, `b` toggle head boxes, `l` toggle contour lines. Rendering follows the project convention: predictions only, single color, no visibility color coding.
+Camera input is opened at VGA (640×480) in both demos. Options: `-d cpu|cuda|tensorrt` (default: CUDA if available), `--inference_type auto|fp16|bf16|int8` for TensorRT (`auto`, the default, picks BF16 when onnxruntime-gpu ≥ 1.25 — the `tensorrt` dependency group — runs on an Ampere or newer GPU and FP16 otherwise, printing a recommendation to install ≥ 1.25), `--trt_cache_dir data/models/trt_cache` (TensorRT engines are cached per onnxruntime / TensorRT version, precision and GPU under `ort-<ver>_trt-<ver>_<precision>_sm<cc>/`; caches built with another onnxruntime version are deleted at startup so engines are always rebuilt after an upgrade), `--ort_log_level verbose|info|warning|error|fatal` (onnxruntime's global logger; the default `error` hides the TensorRT engine-build warnings such as `Make sure input ... has Int64 binding` and `Could not read timing cache`), `--head_score_threshold 0.5`, `--draw_lines` (ibug68 contour lines), `--disable_bbox`, `--point_radius`, `--save_raw_predictions` (per-image / per-frame JSON with head boxes, points and the 3-class visibility), `--disable_imshow`, `--disable_video_writer`. Keys for video / camera input: `ESC` quit, `b` toggle head boxes, `l` toggle contour lines. Rendering follows the project convention: predictions only, single color, no visibility color coding.
 
 ### Web demo (`demo/web/`, Electron + onnxruntime-web on WebGPU / WASM)
 
