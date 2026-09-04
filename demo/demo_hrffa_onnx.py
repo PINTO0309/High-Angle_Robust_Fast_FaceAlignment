@@ -10,6 +10,9 @@
      変換の逆行列で元画像座標へ戻す。入力正規化はモデル名から推定(vitl → imagenet、それ以外 → center05)
      し、`--input_norm` で上書きできる。バッチ軸が N のモデルは 1 フレームの全頭部を一括推論する。
 
+  3. YawNet(SynthYaw、任意): 頭部 bbox を 64×64・RGB・center05 にして `(cos θ, sin θ)` から頭部 yaw を得る。
+     θ は画像面内の頭の向き(0 = カメラ側 = 画像の下、90 = 右、180 = 奥 = 上、270 = 左)。右上の円環と各頭部の矢印で表示する。
+
 描画は本プロジェクトの規約どおり予測のみ・単色(緑)・可視性による色分けなし。
 
 使い方(既定モデル):
@@ -18,7 +21,7 @@
   python demo/demo_hrffa_onnx.py -v input.mp4 -o output_dir -d cuda
   python demo/demo_hrffa_onnx.py -am data/models/hrffa_hg0_ibug68_1x3x96x96.onnx -i images -o out
 
-キー操作(動画 / カメラ): ESC 終了、b = 頭部 bbox の表示切替、l = ランドマーク連結線の表示切替。
+キー操作(動画 / カメラ): ESC 終了、b = 頭部 bbox の表示切替、l = ランドマーク連結線の表示切替、r = 向きの円環の表示切替。
 """
 
 from __future__ import annotations
@@ -43,10 +46,12 @@ import onnxruntime as ort
 
 DEFAULT_DETECTOR = "data/models/deimv2_dinov3_s_wholebody49_ins_s08_maskhead256x3_center_1240query_masks.onnx"
 DEFAULT_ALIGNER = "data/models/hrffa_vitt_ibug68_1x3x256x256.onnx"
+DEFAULT_ORIENTATION = "data/models/yawnet_distill_064_unified_v6u_kappa_1x3x64x64.onnx"
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
 HEAD_CLASS_ID = 7
 DRAW_COLOR = (0, 255, 0)  # BGR。予測のみ・単色
+RING_COLOR = (230, 230, 230)  # 円環の目盛り(UI 要素)
 INPUT_NORMS = {
     "imagenet": ((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     "center05": ((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -79,6 +84,7 @@ class HeadResult:
     box: HeadBox
     points: np.ndarray      # [K, 2] 元画像座標(px)
     visibility: np.ndarray  # [K] 0=画像外 / 1=遮蔽 / 2=可視
+    orientation_deg: float | None = None  # 頭部 yaw θ [deg](YawNet)、0 = カメラ側(画像の下)、時計回りに 90 = 右
 
 
 # ---------------------------------------------------------------------------
@@ -362,6 +368,66 @@ class FaceAligner:
 
 
 # ---------------------------------------------------------------------------
+# 3 段目(任意): YawNet による頭部 yaw
+# ---------------------------------------------------------------------------
+class HeadOrientation:
+    """頭の向き推定 ONNX。既定は YawNet(SynthYaw の自作アーキテクチャ): 入力 [N, 3, 64, 64] → 出力 (cos θ, sin θ)(+ 任意で kappa)。
+    BiternionNet 論文由来の旧モデル(46 入力、RGB [0,1])にも対応する。
+
+    前処理は元実装と同じく頭部画像を 50×50 に Lanczos で縮小してから中央 46×46 を切り出す。
+    θ = atan2(sin, cos) [deg] は画像面内の向きで、0 = カメラ側(画像の下)、90 = 右、180 = 奥(上)、270 = 左。
+    """
+
+    def __init__(self, model_path: Path, providers: list):
+        self.session = make_session(model_path, providers)
+        self.providers = self.session.get_providers()
+        # SynthYaw の YawNet(蒸留 yaw 回帰): center05 正規化・INTER_LINEAR 直接リサイズで学習され、
+        # 出力は yawpose 規約 (0 = 正面, +90 = 画面左)。円環規約 (90 = 画面右) とは鏡像なので
+        # デコード時に 360 − yaw へ変換する。それ以外(BiternionNet 系)は [0,1]・Lanczos・変換なし
+        self.is_yawnet = "yawnet" in model_path.name.lower()
+        self.output_name = self.session.get_outputs()[0].name  # kappa 付きモデルは cos_sin + kappa の 2 出力
+        inp = self.session.get_inputs()[0]
+        self.input_name = inp.name
+        shape = inp.shape
+        if len(shape) != 4 or not isinstance(shape[2], int) or shape[2] != shape[3]:
+            raise ValueError(f"Orientation model input must be [N, 3, S, S] with fixed S, got {shape}")
+        self.size = int(shape[2])
+        self.dynamic_batch = not isinstance(shape[0], int)
+        self.last_inference_time = 0.0
+
+    def preprocess(self, image_bgr: np.ndarray, box: HeadBox) -> np.ndarray:
+        h, w = image_bgr.shape[:2]
+        x1, y1 = int(max(0, math.floor(box.x1))), int(max(0, math.floor(box.y1)))
+        x2, y2 = int(min(w, math.ceil(box.x2))), int(min(h, math.ceil(box.y2)))
+        crop = image_bgr[y1:y2, x1:x2]
+        if crop.size == 0:
+            crop = np.zeros((self.size, self.size, 3), dtype=np.uint8)
+        # 46 入力のモデルは元実装どおり 50×50 → 中央 46×46。それ以外(64 など)は
+        # resize_size == input_size(外周クロップなし)で学習されているため直接リサイズする
+        margin = 2 if self.size == 46 else 0
+        big = self.size + 2 * margin
+        interp = cv2.INTER_LINEAR if self.is_yawnet else cv2.INTER_LANCZOS4
+        resized = cv2.resize(crop, (big, big), interpolation=interp)
+        center = resized[margin:margin + self.size, margin:margin + self.size]
+        x = cv2.cvtColor(center, cv2.COLOR_BGR2RGB).transpose(2, 0, 1).astype(np.float32) / 255.0
+        return (x - 0.5) / 0.5 if self.is_yawnet else x
+
+    def __call__(self, image_bgr: np.ndarray, heads: Sequence[HeadBox]) -> list[float]:
+        if not heads:
+            self.last_inference_time = 0.0
+            return []
+        batch = np.stack([self.preprocess(image_bgr, box) for box in heads]).astype(np.float32)
+        t0 = time.perf_counter()
+        if self.dynamic_batch:
+            (out,) = self.session.run([self.output_name], {self.input_name: batch})
+        else:
+            out = np.concatenate([self.session.run([self.output_name], {self.input_name: batch[i:i + 1]})[0] for i in range(len(batch))])
+        self.last_inference_time = time.perf_counter() - t0
+        degs = [float(math.degrees(math.atan2(float(cs[1]), float(cs[0]))) % 360.0) for cs in out]
+        return [(360.0 - d) % 360.0 for d in degs] if self.is_yawnet else degs
+
+
+# ---------------------------------------------------------------------------
 # 描画・保存
 # ---------------------------------------------------------------------------
 def draw_results(image: np.ndarray, results: Sequence[HeadResult], draw_bbox: bool,
@@ -384,6 +450,87 @@ def draw_results(image: np.ndarray, results: Sequence[HeadResult], draw_bbox: bo
     return out
 
 
+def _orientation_vector(deg: float) -> tuple[float, float]:
+    """θ [deg] → 画像座標の単位ベクトル (dx, dy)。0 = 下(カメラ側)、90 = 右、180 = 上、270 = 左。"""
+    rad = math.radians(deg)
+    return math.sin(rad), math.cos(rad)
+
+
+def _box_iou(a: HeadBox, b: HeadBox) -> float:
+    ix = max(0.0, min(a.x2, b.x2) - max(a.x1, b.x1))
+    iy = max(0.0, min(a.y2, b.y2) - max(a.y1, b.y1))
+    inter = ix * iy
+    union = (a.x2 - a.x1) * (a.y2 - a.y1) + (b.x2 - b.x1) * (b.y2 - b.y1) - inter
+    return inter / union if union > 0.0 else 0.0
+
+
+class OrientationSmoother:
+    """円環表示用の circular EMA(表示専用。JSON の orientation_deg には適用しない)。
+
+    角度を直接平均すると 0/360 の折り返しで破綻するため、単位ベクトル (cos θ, sin θ) を
+    α = 1 − exp(−Δt/τ) で混ぜてから atan2 で角度に戻す。円環が追う「最大の頭部」が
+    別の頭部に切り替わったとき(前回 bbox との IoU < 0.3)は状態を捨てて即時追従する。
+    """
+
+    def __init__(self, tau: float):
+        self.tau = tau
+        self.vec: np.ndarray | None = None
+        self.box: HeadBox | None = None
+        self.t: float | None = None
+
+    def update(self, box: HeadBox, deg: float) -> float:
+        now = time.perf_counter()
+        v = np.array([np.cos(np.radians(deg)), np.sin(np.radians(deg))], dtype=np.float64)
+        if self.vec is None or self.box is None or self.t is None or _box_iou(self.box, box) < 0.3:
+            self.vec, self.box, self.t = v, box, now
+            return deg
+        alpha = 1.0 if self.tau <= 0.0 else 1.0 - float(np.exp(-max(now - self.t, 0.0) / self.tau))
+        w = (1.0 - alpha) * self.vec + alpha * v
+        n = float(np.hypot(w[0], w[1]))
+        self.vec = v if n < 1e-6 else w / n
+        self.box, self.t = box, now
+        return float(np.degrees(np.arctan2(self.vec[1], self.vec[0])) % 360.0)
+
+
+def draw_orientation(image: np.ndarray, results: Sequence[HeadResult], ring: bool = True,
+                     ring_deg: float | None = None) -> None:
+    """右上に最大の頭部の向きを示す円環を描く(向きの推定が無い頭部は飛ばす。頭部ごとの矢印は描かない)。
+
+    ring_deg を渡すと扇形と中央の数字にその角度(平滑化済みの表示用角度)を使う。
+    """
+    with_angle = [r for r in results if r.orientation_deg is not None]
+    if not with_angle:
+        return
+    if not ring:
+        return
+    h, w = image.shape[:2]
+    primary = max(with_angle, key=lambda r: (r.box.x2 - r.box.x1) * (r.box.y2 - r.box.y1))
+    radius = max(28, int(round(min(w, h) * 0.09)))
+    band = max(6, radius // 4)
+    margin = band + 20  # outer labels (radius + band + 9) must stay inside the frame
+    center = (w - radius - margin, radius + margin)
+    # 円環の帯(半透明の下地 + 目盛り)。画像座標での角度 φ = 90 − θ(OpenCV の角度は +x から +y(下)へ向かって正)
+    overlay = image.copy()
+    cv2.circle(overlay, center, radius, (40, 40, 40), band, cv2.LINE_AA)
+    cv2.addWeighted(overlay, 0.6, image, 0.4, 0, image)
+    cv2.circle(image, center, radius, RING_COLOR, 1, cv2.LINE_AA)
+    cv2.circle(image, center, radius - band // 2 - band // 2, RING_COLOR, 1, cv2.LINE_AA)
+    for theta, label in ((0.0, "0"), (90.0, "90"), (180.0, "180"), (270.0, "270")):
+        dx, dy = _orientation_vector(theta)
+        p1 = (int(round(center[0] + dx * (radius - band))), int(round(center[1] + dy * (radius - band))))
+        p2 = (int(round(center[0] + dx * (radius + band // 2 + 2))), int(round(center[1] + dy * (radius + band // 2 + 2))))
+        cv2.line(image, p1, p2, RING_COLOR, 1, cv2.LINE_AA)
+        tx, ty = center[0] + dx * (radius + band + 9), center[1] + dy * (radius + band + 9)
+        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.35, 1)
+        cv2.putText(image, label, (int(round(tx - tw / 2)), int(round(ty + th / 2))), cv2.FONT_HERSHEY_SIMPLEX, 0.35, RING_COLOR, 1, cv2.LINE_AA)
+    deg = primary.orientation_deg if ring_deg is None else ring_deg
+    phi = 90.0 - deg
+    cv2.ellipse(image, center, (radius, radius), 0.0, phi - 9.0, phi + 9.0, DRAW_COLOR, band, cv2.LINE_AA)
+    text = f"{deg:.0f}"
+    (tw, th), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+    cv2.putText(image, text, (center[0] - tw // 2, center[1] + th // 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, DRAW_COLOR, 1, cv2.LINE_AA)
+
+
 def put_text(image: np.ndarray, text: str, org: tuple[int, int], scale: float = 0.7, thickness: int = 2) -> None:
     """黒帯の上に白文字を 1 回だけ描く。
 
@@ -402,6 +549,7 @@ def results_to_records(results: Sequence[HeadResult]) -> list[dict]:
         "score": round(r.box.score, 4),
         "points": [[round(float(x), 2), round(float(y), 2)] for x, y in r.points],
         "visibility": [int(v) for v in r.visibility],
+        "orientation_deg": None if r.orientation_deg is None else round(r.orientation_deg, 1),
     } for r in results]
 
 
@@ -426,6 +574,16 @@ class Pipeline:
         self.detector = HeadDetector(det_path, providers, args.head_score_threshold)
         input_norm = args.input_norm if args.input_norm != "auto" else infer_input_norm(aln_path)
         self.aligner = FaceAligner(aln_path, providers, input_norm, args.crop_pad)
+        self.orientation: HeadOrientation | None = None
+        orientation_path = Path(args.orientation_model) if args.orientation_model else None
+        if orientation_path is not None and not args.disable_orientation:
+            if orientation_path.exists():
+                self.orientation = HeadOrientation(orientation_path, providers)
+            else:
+                print(f"Orientation model not found, head orientation disabled: {orientation_path}")
+        self.draw_ring = not args.disable_orientation_ring
+        self.orientation_smooth_tau = args.orientation_smooth_tau
+        self.ring_smoother: OrientationSmoother | None = None  # process_video が有効化(動画・カメラのみ)
         self.draw_bbox = not args.disable_bbox
         self.draw_lines = args.draw_lines
         self.point_radius = args.point_radius
@@ -438,13 +596,27 @@ class Pipeline:
         self.detector(dummy)
         s = self.aligner.out_size
         self.aligner(np.zeros((s, s, 3), dtype=np.uint8), [HeadBox(0.0, 0.0, float(s - 1), float(s - 1), 1.0)])
+        if self.orientation is not None:
+            self.orientation(np.zeros((64, 64, 3), dtype=np.uint8), [HeadBox(0.0, 0.0, 63.0, 63.0, 1.0)])
 
     def run(self, image: np.ndarray) -> tuple[np.ndarray, list[HeadResult], float, float]:
         t0 = time.perf_counter()
         heads = self.detector(image)
         results = self.aligner(image, heads)
         infer_ms = (self.detector.last_inference_time + self.aligner.last_inference_time) * 1000.0
+        if self.orientation is not None:
+            for r, deg in zip(results, self.orientation(image, heads)):
+                r.orientation_deg = deg
+            infer_ms += self.orientation.last_inference_time * 1000.0
         rendered = draw_results(image, results, self.draw_bbox, self.draw_lines, self.point_radius)
+        if self.orientation is not None:
+            ring_deg = None
+            if self.ring_smoother is not None:
+                with_angle = [r for r in results if r.orientation_deg is not None]
+                if with_angle:
+                    primary = max(with_angle, key=lambda r: (r.box.x2 - r.box.x1) * (r.box.y2 - r.box.y1))
+                    ring_deg = self.ring_smoother.update(primary.box, primary.orientation_deg)
+            draw_orientation(rendered, results, ring=self.draw_ring, ring_deg=ring_deg)
         total_ms = (time.perf_counter() - t0) * 1000.0
         return rendered, results, infer_ms, total_ms
 
@@ -491,6 +663,8 @@ def process_video(pipeline: Pipeline, video: str, output_dir: Path, save_raw: bo
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     print(f"Processing video source: {video}")
+    if pipeline.orientation is not None and pipeline.orientation_smooth_tau > 0.0:
+        pipeline.ring_smoother = OrientationSmoother(pipeline.orientation_smooth_tau)
     writer = None
     frame_index = 0
     try:
@@ -518,6 +692,8 @@ def process_video(pipeline: Pipeline, video: str, output_dir: Path, save_raw: bo
                     pipeline.draw_bbox = not pipeline.draw_bbox
                 elif key == ord("l"):
                     pipeline.draw_lines = not pipeline.draw_lines
+                elif key == ord("r"):
+                    pipeline.draw_ring = not pipeline.draw_ring
     finally:
         cap.release()
         if writer is not None:
@@ -533,6 +709,12 @@ def parse_args() -> argparse.Namespace:
                     help="DEIMv2-Wholebody49 ONNX (outputs label_xyxy_score; class 7 = head)")
     ap.add_argument("-am", "--alignment_model", type=str, default=DEFAULT_ALIGNER,
                     help="HRFFA ONNX (images [N,3,S,S] -> points, vis_logits); fixed-batch and N-batch graphs are both accepted")
+    ap.add_argument("-om", "--orientation_model", type=str, default=DEFAULT_ORIENTATION,
+                    help="YawNet ONNX for the head yaw (images [N,3,S,S] -> (cos, sin)); "
+                         "skipped when the file does not exist")
+    ap.add_argument("--disable_orientation", action="store_true", help="do not run the orientation model")
+    ap.add_argument("--disable_orientation_ring", action="store_true", help="do not draw the top-right orientation ring (the angle is still estimated and written to the JSON)")
+    ap.add_argument("--orientation_smooth_tau", type=float, default=0.0, help="circular-EMA time constant in seconds for the orientation ring on video / camera input (display only; default 0 = no smoothing, e.g. 0.15 to enable)")
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("-i", "--images_dir", type=str, help="directory of input images")
     src.add_argument("-v", "--video", type=str, help="video file path or camera index")
@@ -568,6 +750,9 @@ def main() -> None:
     print(f"Aligner: {args.alignment_model} (input {pipeline.aligner.out_size}x{pipeline.aligner.out_size}, "
           f"{'N-batch' if pipeline.aligner.dynamic_batch else 'batch 1'}, norm {pipeline.aligner.input_norm}, "
           f"crop pad {pipeline.aligner.crop_pad}, providers {pipeline.aligner.providers})")
+    if pipeline.orientation is not None:
+        print(f"Orientation: {args.orientation_model} (input {pipeline.orientation.size}x{pipeline.orientation.size}, "
+              f"{'N-batch' if pipeline.orientation.dynamic_batch else 'batch 1'}; 0 = facing the camera, 90 = image right, 180 = away, 270 = image left)")
     print(f"Output directory: {output_dir}")
     if args.images_dir is not None:
         images_dir = Path(args.images_dir)
