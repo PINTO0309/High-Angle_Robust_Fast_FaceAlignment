@@ -4,7 +4,8 @@
 //                         for onnxruntime-web by scripts/onnx_web_compat.py; the demo only uses boxes,
 //                         so the variants with a masks output are not staged), yolov9_*.onnx
 //                         (YOLOv9-Wholebody34 raw-head exports, decoded + NMS in the app) and hrffa_*.onnx
-//   ../../data/models/    hrffa_*.onnx only (the HRFFA graphs run unmodified; the original
+//   ../../data/models/    hrffa_*.onnx plus yawnet_distill_{064,096,128}_unified_v6u_kappa*.onnx (head orientation,
+//                         optional) only (the HRFFA graphs run unmodified; the original
 //                         DEIMv2 exports do NOT load in onnxruntime-web and are not staged)
 // Files above MAX_MODEL_BYTES (the 1.2 GB ViT-L teacher) are skipped unless
 // HRFFA_WEB_INCLUDE_LARGE=1 is set.
@@ -16,8 +17,8 @@ import path from 'node:path';
 
 const root = process.cwd();
 const MODEL_SOURCES = [
-  { dir: path.join(root, 'models'), pattern: /^(deimv2_.*_boxes_only.*|yolov9_.*|hrffa_.*)\.onnx$/i },
-  { dir: path.join(root, '..', '..', 'data', 'models'), pattern: /^hrffa_.*\.onnx$/i },
+  { dir: path.join(root, 'models'), pattern: /^(deimv2_.*_boxes_only.*|yolov9_.*|hrffa_.*|yawnet_distill_(?:064|096|128)_unified_v6u_kappa[^/]*)\.onnx$/i },
+  { dir: path.join(root, '..', '..', 'data', 'models'), pattern: /^(hrffa_.*|yawnet_distill_(?:064|096|128)_unified_v6u_kappa[^/]*)\.onnx$/i },
 ];
 const MAX_MODEL_BYTES = 300 * 1024 * 1024;
 const includeLarge = process.env.HRFFA_WEB_INCLUDE_LARGE === '1';

@@ -15,6 +15,7 @@ export interface WorkerInitOptions {
   numThreads: number;
   detectorUrl: string;
   alignerUrl: string;
+  orientationUrl: string | null;
   headScoreThreshold: number;
   cropPad: number;
   inputNorm: InputNorm;
@@ -55,6 +56,7 @@ export class WorkerPipeline {
       assetBaseUrl: document.baseURI,
       detectorUrl: new URL(opts.detectorUrl, document.baseURI).href,
       alignerUrl: new URL(opts.alignerUrl, document.baseURI).href,
+      orientationUrl: opts.orientationUrl === null ? null : new URL(opts.orientationUrl, document.baseURI).href,
       headScoreThreshold: opts.headScoreThreshold,
       cropPad: opts.cropPad,
       inputNorm: opts.inputNorm,

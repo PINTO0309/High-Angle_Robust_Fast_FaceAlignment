@@ -50,10 +50,11 @@ function setIsolationHeaders(): void {
 }
 
 function createWindow(): void {
-  // 高さは左ペイン(設定 + ステータス + 統計)が縦スクロールなしで収まる値(実測 1500×980 で 34 px 不足 → 余裕込み)
+  // 高さは左ペイン(設定 + ステータス + 統計)が縦スクロールなしで収まる値
+  // (2026-09-04: 向きモデル選択と平滑化チェックボックスの追加で .controls-card の必要高さが実測 943 px に増加 → +100)
   const win = new BrowserWindow({
     width: 1500,
-    height: 1060,
+    height: 1160,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,

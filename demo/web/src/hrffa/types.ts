@@ -14,11 +14,14 @@ export interface HeadResult {
   points: Float32Array;
   // [K] 0 = 画像外 / 1 = 遮蔽 / 2 = 可視
   visibility: Uint8Array;
+  // 頭部 yaw θ [deg](YawNet、0 = カメラ側 = 画像の下、90 = 右、180 = 奥、270 = 左)。未推定なら undefined
+  orientationDeg?: number;
 }
 
 export interface FrameStats {
   detectMs: number;
   alignMs: number;
+  orientMs: number;
   nHeads: number;
 }
 

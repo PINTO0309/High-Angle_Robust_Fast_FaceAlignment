@@ -6,9 +6,10 @@ import { WorkerPipeline } from './runtime/workerClient';
 import { FaceAligner } from './hrffa/aligner';
 import { inferInputNorm, type InputNorm } from './hrffa/constants';
 import { HeadDetector } from './hrffa/detector';
-import { drawHeads, type DrawOptions } from './hrffa/draw';
+import { drawHeads, drawOrientation, pickPrimaryOriented, type DrawOptions } from './hrffa/draw';
+import { HeadOrientation } from './hrffa/orientation';
 import { HrffaPipeline } from './hrffa/pipeline';
-import type { FrameOutput, FrameSource } from './hrffa/types';
+import type { FrameOutput, FrameSource, HeadBox } from './hrffa/types';
 import type { WorkerReadyInfo } from './workers/inference.worker';
 
 interface ModelEntry {
@@ -25,6 +26,7 @@ interface RunStats {
   totalMs: number;
   detectMs: number;
   alignMs: number;
+  orientMs: number;
   nHeads: number;
   frame: number;
 }
@@ -34,7 +36,7 @@ const DEFAULT_DETECTOR = 'yolov9_t_wholebody34_0100_1x3x640x640.onnx';
 const DEFAULT_ALIGNER = 'hrffa_vitt_ibug68_1x3x256x256.onnx';
 const WEBGPU_OK = typeof navigator !== 'undefined' && 'gpu' in navigator;
 // URL クエリ: ?backend=wasm|webgpu、?worker=dedicated|main、?detector=<file>、?aligner=<file>、
-// ?image=<同一オリジンの画像 URL>、?video=<同一オリジンの動画 URL>、?autostart=1
+// ?orientation=<file>|off、?image=<同一オリジンの画像 URL>、?video=<同一オリジンの動画 URL>、?autostart=1
 const QUERY = new URLSearchParams(window.location.search);
 // 推論の実行場所はページ読み込み時に固定(Electron は --web-inference-worker を ?worker= に写す)
 const WORKER_MODE = activeWorkerMode();
@@ -42,6 +44,46 @@ const WORKER_MODE = activeWorkerMode();
 // 検出器は boxes-only 版のみ列挙する(masks 出力付きの export はこのデモでは使わない。ユーザー指定 2026-08-30)
 const isDetector = (m: ModelEntry): boolean => /^deimv2_.*boxes_only/i.test(m.name) || /^yolov9_/i.test(m.name);
 const isAligner = (m: ModelEntry): boolean => /^hrffa_/i.test(m.name);
+// YawNet(SynthYaw、自作アーキテクチャ。biternion 表現と von-Mises 損失のみ論文由来)の頭部 yaw モデル(任意)
+// 選択肢に出す頭部向きモデルの許可リスト(v6u_kappa 系のみ。128 はファイル配置で自動追加)
+const ORIENTATION_MODELS = [
+  'yawnet_distill_064_unified_v6u_kappa_1x3x64x64.onnx',
+  'yawnet_distill_096_unified_v6u_kappa_1x3x96x96.onnx',
+  'yawnet_distill_128_unified_v6u_kappa_1x3x128x128.onnx',
+];
+const isOrientation = (m: ModelEntry): boolean => ORIENTATION_MODELS.includes(m.name);
+const ORIENTATION_OFF = '';
+const DEFAULT_ORIENTATION_MODEL = 'yawnet_distill_064_unified_v6u_kappa_1x3x64x64.onnx';
+// 円環表示の circular EMA(動画・カメラのみ、表示専用): 単位ベクトルを α = 1 − exp(−Δt/τ) で混ぜてから角度に戻す
+const RING_SMOOTH_TAU_MS = 150;
+
+interface RingSmoothState {
+  v: [number, number];
+  box: HeadBox;
+  t: number;
+}
+
+function boxIou(a: HeadBox, b: HeadBox): number {
+  const ix = Math.max(0, Math.min(a.x2, b.x2) - Math.max(a.x1, b.x1));
+  const iy = Math.max(0, Math.min(a.y2, b.y2) - Math.max(a.y1, b.y1));
+  const inter = ix * iy;
+  const union = (a.x2 - a.x1) * (a.y2 - a.y1) + (b.x2 - b.x1) * (b.y2 - b.y1) - inter;
+  return union > 0 ? inter / union : 0;
+}
+
+// 追跡対象が入れ替わったら(IoU < 0.3)状態を捨てて即時追従する
+function smoothRingDeg(state: RingSmoothState | null, box: HeadBox, deg: number, now: number): [number, RingSmoothState] {
+  const rad = (deg * Math.PI) / 180;
+  const v: [number, number] = [Math.cos(rad), Math.sin(rad)];
+  if (state === null || boxIou(state.box, box) < 0.3) {
+    return [deg, { v, box, t: now }];
+  }
+  const alpha = 1 - Math.exp(-Math.max(now - state.t, 0) / RING_SMOOTH_TAU_MS);
+  const w: [number, number] = [(1 - alpha) * state.v[0] + alpha * v[0], (1 - alpha) * state.v[1] + alpha * v[1]];
+  const n = Math.hypot(w[0], w[1]);
+  const sv: [number, number] = n < 1e-6 ? v : [w[0] / n, w[1] / n];
+  return [((Math.atan2(sv[1], sv[0]) * 180) / Math.PI + 360) % 360, { v: sv, box, t: now }];
+}
 
 function pickDefault(list: ModelEntry[], preferred: string): string {
   return list.find((m) => m.name === preferred)?.name ?? list[0]?.name ?? '';
@@ -103,6 +145,7 @@ async function createLocalRunner(opts: {
   numThreads: number;
   detectorUrl: string;
   alignerUrl: string;
+  orientationUrl: string | null;
   headScoreThreshold: number;
   cropPad: number;
   inputNorm: InputNorm;
@@ -126,9 +169,15 @@ async function createLocalRunner(opts: {
   engines.push(detectorEngine);
   const alignerEngine = await loadWithFallback(await fetchBytes(opts.alignerUrl));
   engines.push(alignerEngine);
+  let orientation: HeadOrientation | null = null;
+  if (opts.orientationUrl !== null) {
+    const orientationEngine = await loadWithFallback(await fetchBytes(opts.orientationUrl));
+    engines.push(orientationEngine);
+    orientation = new HeadOrientation(orientationEngine, opts.orientationUrl);
+  }
   const detector = new HeadDetector(detectorEngine, opts.headScoreThreshold);
   const aligner = new FaceAligner(alignerEngine, opts.inputNorm, opts.cropPad);
-  const pipeline = new HrffaPipeline(detector, aligner);
+  const pipeline = new HrffaPipeline(detector, aligner, orientation);
   // ウォームアップ(Worker と同じ)
   const warm = document.createElement('canvas');
   warm.width = detector.inWidth;
@@ -136,6 +185,9 @@ async function createLocalRunner(opts: {
   const warmSource = sourceFrom(warm, warm.width, warm.height);
   await detector.detect(warmSource);
   await aligner.align(warmSource, [{ x1: 0, y1: 0, x2: warm.width - 1, y2: warm.height - 1, score: 1 }]);
+  if (orientation !== null) {
+    await orientation.estimate(warmSource, [{ x1: 0, y1: 0, x2: warm.width - 1, y2: warm.height - 1, score: 1 }]);
+  }
   return {
     info: {
       accelerator: accel,
@@ -144,6 +196,7 @@ async function createLocalRunner(opts: {
       detectorFormat: detector.format,
       alignerInput: aligner.size,
       alignerBatch: aligner.dynamicBatch ? 'N' : '1',
+      orientationInput: orientation === null ? null : orientation.size,
     },
     process: (source) => pipeline.process(source),
     setParams: async (params) => {
@@ -188,6 +241,7 @@ export default function App() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [detectorName, setDetectorName] = useState<string>('');
   const [alignerName, setAlignerName] = useState<string>('');
+  const [orientationName, setOrientationName] = useState<string>(ORIENTATION_OFF);
   const [backend, setBackend] = useState<Accelerator>(() =>
     QUERY.get('backend') === 'wasm' || !WEBGPU_OK ? 'wasm' : 'webgpu',
   );
@@ -204,6 +258,8 @@ export default function App() {
   const [inputNorm, setInputNorm] = useState<InputNormChoice>('auto');
   const [drawBbox, setDrawBbox] = useState<boolean>(true);
   const [drawLines, setDrawLines] = useState<boolean>(false);
+  const [drawRing, setDrawRing] = useState<boolean>(true);
+  const [smoothRing, setSmoothRing] = useState<boolean>(false);
   const [running, setRunning] = useState<boolean>(false);
   const [status, setStatus] = useState<string>('Idle');
   const [engineInfo, setEngineInfo] = useState<string | null>(null);
@@ -217,12 +273,20 @@ export default function App() {
   // 進行中のフレーム推論。Stop はこれの完了を待ってからセッションを解放する(解放が先だと OrtRun が
   // "Buffer was unmapped before mapping was resolved" で失敗する)
   const inflightRef = useRef<Promise<FrameOutput> | null>(null);
-  const drawOptsRef = useRef<DrawOptions>({ bbox: true, lines: false, pointRadius: null });
+  const drawOptsRef = useRef<DrawOptions>({ bbox: true, lines: false, pointRadius: null, orientation: true });
+  const ringSmoothRef = useRef<RingSmoothState | null>(null);
+  const smoothRingRef = useRef<boolean>(false);
   const autostartedRef = useRef<boolean>(false);
 
   useEffect(() => {
-    drawOptsRef.current = { bbox: drawBbox, lines: drawLines, pointRadius: null };
-  }, [drawBbox, drawLines]);
+    drawOptsRef.current = { bbox: drawBbox, lines: drawLines, pointRadius: null, orientation: drawRing };
+  }, [drawBbox, drawLines, drawRing]);
+  useEffect(() => {
+    smoothRingRef.current = smoothRing;
+    if (!smoothRing) {
+      ringSmoothRef.current = null; // 再有効化時に古い状態から引きずらない
+    }
+  }, [smoothRing]);
 
   // ---- model catalog (public/models/manifest.json, staged by scripts/prepare-assets.mjs)
   useEffect(() => {
@@ -269,6 +333,15 @@ export default function App() {
     const wantedAligner = QUERY.get('aligner') ?? DEFAULT_ALIGNER;
     setDetectorName((current) => (current && detectors.some((m) => m.name === current) ? current : pickDefault(detectors, wantedDetector)));
     setAlignerName((current) => (current && aligners.some((m) => m.name === current) ? current : pickDefault(aligners, wantedAligner)));
+    const orientations = models.filter(isOrientation);
+    const wantedOrientation = QUERY.get('orientation');
+    setOrientationName((current) =>
+      current && orientations.some((m) => m.name === current)
+        ? current
+        : wantedOrientation === 'off'
+          ? ORIENTATION_OFF
+          : pickDefault(orientations, wantedOrientation ?? DEFAULT_ORIENTATION_MODEL),
+    );
   }, [models]);
 
   useEffect(() => {
@@ -325,6 +398,7 @@ export default function App() {
     }
     const detector = models.find((m) => m.name === detectorName);
     const aligner = models.find((m) => m.name === alignerName);
+    const orientation = orientationName ? models.find((m) => m.name === orientationName) ?? null : null;
     if (!detector || !aligner) {
       setStatus('Select a detector (deimv2_*.onnx) and an alignment model (hrffa_*.onnx).');
       return;
@@ -343,6 +417,7 @@ export default function App() {
         numThreads,
         detectorUrl: detector.url,
         alignerUrl: aligner.url,
+        orientationUrl: orientation ? orientation.url : null,
         headScoreThreshold: headScore,
         cropPad,
         inputNorm: norm,
@@ -356,7 +431,8 @@ export default function App() {
       const ready = runner.info;
       setEngineInfo(
         `${ready.accelerator} / ${modeLabel} · detector ${ready.detectorInput[0]}x${ready.detectorInput[1]} (${ready.detectorFormat}) · ` +
-          `aligner ${ready.alignerInput}x${ready.alignerInput} (batch ${ready.alignerBatch}, ${norm})`,
+          `aligner ${ready.alignerInput}x${ready.alignerInput} (batch ${ready.alignerBatch}, ${norm})` +
+          (ready.orientationInput !== null ? ` · orientation ${ready.orientationInput}x${ready.orientationInput}` : ''),
       );
       const noteSuffix = ready.note ? ` — ${ready.note}` : '';
 
@@ -401,6 +477,9 @@ export default function App() {
         const totalMs = performance.now() - t0;
         ctx.drawImage(bitmap, 0, 0);
         drawHeads(ctx, output.heads, drawOptsRef.current);
+        if (drawOptsRef.current.orientation) {
+          drawOrientation(ctx, output.heads, canvas.width, canvas.height);
+        }
         bitmap.close();
         publishResult(output);
         setStats({
@@ -408,6 +487,7 @@ export default function App() {
           totalMs,
           detectMs: output.stats.detectMs,
           alignMs: output.stats.alignMs,
+          orientMs: output.stats.orientMs,
           nHeads: output.stats.nHeads,
           frame: 1,
         });
@@ -483,12 +563,23 @@ export default function App() {
           emaFps = emaFps === 0 ? fps : 0.9 * emaFps + 0.1 * fps;
           ctx.drawImage(video, 0, 0, frameW, frameH);
           drawHeads(ctx, output.heads, drawOptsRef.current);
+          if (drawOptsRef.current.orientation) {
+            const primary = pickPrimaryOriented(output.heads);
+            let ringDeg: number | undefined;
+            if (primary !== null && smoothRingRef.current) {
+              const [deg, next] = smoothRingDeg(ringSmoothRef.current, primary.box, primary.orientationDeg as number, performance.now());
+              ringSmoothRef.current = next;
+              ringDeg = deg;
+            }
+            drawOrientation(ctx, output.heads, frameW, frameH, ringDeg);
+          }
           publishResult(output);
           setStats({
             fps: emaFps,
             totalMs: 1000 / Math.max(emaFps, 1e-3),
             detectMs: output.stats.detectMs,
             alignMs: output.stats.alignMs,
+            orientMs: output.stats.orientMs,
             nHeads: output.stats.nHeads,
             frame: frameNo,
           });
@@ -506,7 +597,7 @@ export default function App() {
       setStatus(`Error: ${errorMessage(error)}`);
       stop();
     }
-  }, [alignerName, backend, cameraId, cropPad, detectorName, headScore, imageUrl, inputNorm, models, numThreads, sourceKind, stop, videoFileUrl]);
+  }, [alignerName, backend, cameraId, cropPad, detectorName, headScore, imageUrl, inputNorm, models, numThreads, orientationName, sourceKind, stop, videoFileUrl]);
 
   useEffect(() => {
     if (QUERY.get('autostart') === '1' && !autostartedRef.current && detectorName && alignerName) {
@@ -517,6 +608,7 @@ export default function App() {
 
   const detectors = models.filter(isDetector);
   const aligners = models.filter(isAligner);
+  const orientations = models.filter(isOrientation);
 
   return (
     <div className="layout">
@@ -543,6 +635,18 @@ export default function App() {
             Alignment model (HRFFA)
             <select value={alignerName} onChange={(e) => setAlignerName(e.target.value)} disabled={running}>
               {aligners.map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.name}
+                  {formatMb(m.bytes)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Head yaw (YawNet, optional: 0 = facing the camera, 90 = image right, 180 = away)
+            <select value={orientationName} onChange={(e) => setOrientationName(e.target.value)} disabled={running}>
+              <option value={ORIENTATION_OFF}>off</option>
+              {orientations.map((m) => (
                 <option key={m.name} value={m.name}>
                   {m.name}
                   {formatMb(m.bytes)}
@@ -655,6 +759,14 @@ export default function App() {
             <input type="checkbox" checked={drawLines} onChange={(e) => setDrawLines(e.target.checked)} />
             Draw ibug68 contour lines
           </label>
+          <label className="inline">
+            <input type="checkbox" checked={drawRing} onChange={(e) => setDrawRing(e.target.checked)} disabled={!orientationName} />
+            Draw head orientation ring (top-right, largest head)
+          </label>
+          <label className="inline">
+            <input type="checkbox" checked={smoothRing} onChange={(e) => setSmoothRing(e.target.checked)} disabled={!orientationName || !drawRing} />
+            Smooth the ring (circular EMA, τ = 150 ms; video / camera only)
+          </label>
         </div>
         <div className="buttons">
           <button type="button" onClick={() => void start()} disabled={running || !detectorName || !alignerName}>
@@ -679,6 +791,7 @@ export default function App() {
             )}
             <div>
               detect <b>{stats.detectMs.toFixed(1)}</b> ms · align <b>{stats.alignMs.toFixed(1)}</b> ms
+              {stats.orientMs > 0 ? <> · orient <b>{stats.orientMs.toFixed(1)}</b> ms</> : null}
             </div>
             <div>
               heads <b>{stats.nHeads}</b> · frames <b>{stats.frame}</b>

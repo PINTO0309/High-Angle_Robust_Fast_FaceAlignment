@@ -6,6 +6,7 @@ import { setAssetBaseUrl, type Accelerator, type OrtModel } from '../runtime/eng
 import { loadOrtModel } from '../runtime/ort';
 import { FaceAligner } from '../hrffa/aligner';
 import { HeadDetector } from '../hrffa/detector';
+import { HeadOrientation } from '../hrffa/orientation';
 import { HrffaPipeline } from '../hrffa/pipeline';
 import type { InputNorm } from '../hrffa/constants';
 import type { FrameOutput, FrameSource } from '../hrffa/types';
@@ -17,6 +18,7 @@ export interface WorkerInitMessage {
   assetBaseUrl: string;
   detectorUrl: string;
   alignerUrl: string;
+  orientationUrl: string | null;
   headScoreThreshold: number;
   cropPad: number;
   inputNorm: InputNorm;
@@ -44,6 +46,7 @@ export interface WorkerReadyInfo {
   detectorFormat: string;
   alignerInput: number;
   alignerBatch: 'N' | '1';
+  orientationInput: number | null;
 }
 
 export type WorkerToMainMessage =
@@ -93,9 +96,15 @@ async function initialize(msg: WorkerInitMessage): Promise<void> {
   const alignerEngine = await loadWithFallback(await fetchBytes(msg.alignerUrl));
   engines.push(alignerEngine);
 
+  let orientation: HeadOrientation | null = null;
+  if (msg.orientationUrl !== null) {
+    const orientationEngine = await loadWithFallback(await fetchBytes(msg.orientationUrl));
+    engines.push(orientationEngine);
+    orientation = new HeadOrientation(orientationEngine, msg.orientationUrl);
+  }
   const detector = new HeadDetector(detectorEngine, msg.headScoreThreshold);
   const aligner = new FaceAligner(alignerEngine, msg.inputNorm, msg.cropPad);
-  pipeline = new HrffaPipeline(detector, aligner);
+  pipeline = new HrffaPipeline(detector, aligner, orientation);
   // ウォームアップ: 初回実行のシェーダコンパイル・メモリ確保を計測から外す(Python デモと同じ)
   const warm = new OffscreenCanvas(detector.inWidth, detector.inHeight);
   const warmSource: FrameSource = {
@@ -106,6 +115,9 @@ async function initialize(msg: WorkerInitMessage): Promise<void> {
   };
   await detector.detect(warmSource);
   await aligner.align(warmSource, [{ x1: 0, y1: 0, x2: warm.width - 1, y2: warm.height - 1, score: 1 }]);
+  if (orientation !== null) {
+    await orientation.estimate(warmSource, [{ x1: 0, y1: 0, x2: warm.width - 1, y2: warm.height - 1, score: 1 }]);
+  }
   post({
     type: 'ready',
     accelerator: accel,
@@ -114,6 +126,7 @@ async function initialize(msg: WorkerInitMessage): Promise<void> {
     detectorFormat: detector.format,
     alignerInput: aligner.size,
     alignerBatch: aligner.dynamicBatch ? 'N' : '1',
+    orientationInput: orientation === null ? null : orientation.size,
   });
 }
 
