@@ -27,6 +27,10 @@ A training, distillation and ONNX deployment pipeline for **whole-head face alig
 
   https://github.com/user-attachments/assets/1266c08b-3c2d-4aa6-8804-0427716a56d1
 
+- 360° Yaw Estimation Test
+
+  https://github.com/user-attachments/assets/7eaab9fc-5402-41fb-93f3-49b707422bc9
+
 ## 1. Results at a glance
 
 inter-ocular NME %, lower is better; CPU latency on an i9-10900K with onnxruntime 1.22 CPU EP, batch 1.
