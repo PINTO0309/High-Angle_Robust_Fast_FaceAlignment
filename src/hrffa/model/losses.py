@@ -60,9 +60,25 @@ def coord_loss(pred: torch.Tensor, gt: torch.Tensor, vis: torch.Tensor,
 def visibility_loss(logits: torch.Tensor, vis: torch.Tensor) -> torch.Tensor:
     """3 クラス CE(0=画像外, 1=遮蔽, 2=可視)。-1(不明)は除外。"""
     mask = vis >= 0
-    if not mask.any():
-        return logits.sum() * 0.0
-    return F.cross_entropy(logits[mask], vis[mask].long())
+    # Boolean selection is faster on CPU
+    if logits.device.type != "cuda":
+        if not mask.any():
+            return logits.sum() * 0.0
+        return F.cross_entropy(logits[mask], vis[mask].long())
+    targets = vis.long().masked_fill(~mask, -1)
+    low_precision = logits.dtype in (torch.float16, torch.bfloat16)
+    autocast_enabled = torch.is_autocast_enabled(logits.device.type)
+    # ignore_index alone still evaluates log-softmax on ignored rows
+    loss_logits = logits.masked_fill(~mask.unsqueeze(-1), 0.0)
+    if low_precision and not autocast_enabled:
+        loss_logits = loss_logits.float()
+    loss = F.cross_entropy(loss_logits.reshape(-1, logits.shape[-1]),
+                           targets.reshape(-1), ignore_index=-1, reduction="sum")
+    count = mask.sum()
+    loss = torch.where(count > 0, loss / count.clamp_min(1), logits.sum() * 0.0)
+    if low_precision and not autocast_enabled:
+        loss = loss.to(logits.dtype)
+    return loss
 
 
 def roll_biternion_loss(bit_pred: torch.Tensor, roll_gt: torch.Tensor) -> torch.Tensor:
