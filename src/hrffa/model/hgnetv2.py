@@ -95,12 +95,14 @@ class HGBlock(nn.Module):
                                          ConvBNAct(cout // 2, cout, 1, use_lab=use_lab))
 
     def forward(self, x):
-        identity = x
+        identity = x if self.residual else None
         outs = [x]
         for layer in self.layers:
             x = layer(x)
             outs.append(x)
-        x = self.aggregation(torch.cat(outs, dim=1))
+        x = torch.cat(outs, dim=1)
+        del outs
+        x = self.aggregation(x)
         return x + identity if self.residual else x
 
 
@@ -211,12 +213,13 @@ class HGNetV2Backbone(nn.Module):
         x = self.net.stem(x)
         if self.patch_in is not None:
             x = self.patch_in(x)
-        outs = []
-        for st in self.net.stages:
+        f8 = None
+        for i, st in enumerate(self.net.stages):
             x = st(x)
-            outs.append(x)
-        f4, f8, f16 = outs
-        p16 = self.lat16(f16)
+            if i == 1 and self.feat_stride == 8:
+                f8 = x
+        # keep only the stride-8 feature needed by the FPN
+        p16 = self.lat16(x)
         cls = p16.mean(dim=(2, 3))
         if self.feat_stride == 16:
             return p16, cls
